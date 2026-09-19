@@ -3,15 +3,22 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.10";
+  const APP_VERSION = "1.13";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
+  const DEBUG_TAPS_NEEDED = 10;
+  const SHOT_INTERVAL = 0.13;
+  const LASER_INTERVAL = SHOT_INTERVAL / 1.2;
   const DROP_CHANCE_SMALL = 0.22;
   const DROP_CHANCE_MID = 0.42;
   const MAX_SPEED = 5;
   const MAX_OPTION = 2;
   const MAX_MISSILE = 2;
   const MAX_LASER = 3;
+  const MAX_DOUBLE = 3;
+  const MAX_HOMING = 5;
+  const DOUBLE_SPREAD_EVERY = [0, 0, Math.round(3 / SHOT_INTERVAL), Math.round(2 / SHOT_INTERVAL)];
+  const DOUBLE_SPREAD_ANG = 0.16;
   const SHIELD_HITS = 3;
   const PLAYER_R = 22;
   const HIT_R = 7;
@@ -23,6 +30,7 @@
     laser: "LASER",
     option: "OPTION",
     shield: "SHIELD",
+    homing: "HOMING",
   };
   const POWER_COLOR = {
     speed: "#4aa3ff",
@@ -31,6 +39,7 @@
     laser: "#5ef0ff",
     option: "#ffe14a",
     shield: "#ff7ab8",
+    homing: "#c77dff",
   };
 
   const canvas = document.getElementById("game-canvas");
@@ -53,6 +62,11 @@
   const finalScoreEl = document.getElementById("final-score");
   const newBestEl = document.getElementById("new-best");
   const sfxToggle = document.getElementById("toggle-sfx");
+  const brandI = document.getElementById("brand-i");
+  const btnDebugTitle = document.getElementById("btn-debug-title");
+  const debugBadge = document.getElementById("debug-badge");
+  const btnBomb = document.getElementById("btn-bomb");
+  const bombCountEl = document.getElementById("bomb-count");
   const powerSlots = Array.prototype.slice.call(document.querySelectorAll(".power-slot"));
 
   let state = "title";
@@ -76,6 +90,8 @@
   let stageClearT = 0;
   let banner = "";
   let bannerT = 0;
+  let debugMode = false;
+  let debugTapCount = 0;
   const hazards = [];
   const EXTRA_KINDS = ["deus", "volcano", "idol", "final"];
 
@@ -86,6 +102,7 @@
   const eBullets = [];
   const enemies = [];
   const items = [];
+  const shocks = [];
   const particles = [];
   const floats = [];
   const stars = [];
@@ -169,11 +186,16 @@
       missile: 0,
       weapon: "normal",
       laserLv: 0,
+      doubleLv: 0,
+      doubleCount: 0,
       options: 0,
       shield: 0,
+      homing: 0,
+      bombs: 1,
       invuln: 0,
       fireT: 0,
       misT: 0,
+      homT: 0,
       trail: [],
       blink: 0,
     };
@@ -256,6 +278,7 @@
     eBullets.length = 0;
     enemies.length = 0;
     items.length = 0;
+    shocks.length = 0;
     particles.length = 0;
     floats.length = 0;
     hazards.length = 0;
@@ -274,11 +297,16 @@
       player.missile = 0;
       player.weapon = "normal";
       player.laserLv = 0;
+      player.doubleLv = 0;
+      player.doubleCount = 0;
       player.options = 0;
       player.shield = 0;
+      player.homing = 0;
+      player.homT = 0;
     }
     stage = n;
     clearField();
+    player.bombs = 1;
     player.invuln = 2.2;
     player.fireT = 0;
     player.misT = 0;
@@ -289,6 +317,7 @@
     bannerT = 2.4;
     if (stageEl) stageEl.textContent = stageLabel();
     updateHud();
+    updateBombUi();
   }
 
   function moveSpeed() {
@@ -326,6 +355,11 @@
   function sfxItem() { beep(660, 0.08, "square", 0.05); beep(990, 0.12, "square", 0.04); }
   function sfxHurt() { beep(140, 0.28, "sawtooth", 0.08); }
   function sfxClear() { beep(523, 0.2, "square", 0.06); beep(784, 0.35, "square", 0.05); }
+  function sfxBomb() {
+    beep(70, 0.32, "sawtooth", 0.09);
+    beep(180, 0.22, "square", 0.05);
+    beep(420, 0.18, "triangle", 0.03);
+  }
 
   function addScore(n) {
     score += n;
@@ -495,10 +529,11 @@
     const pool = [];
     if (player.speedLv < MAX_SPEED) { pool.push("speed"); pool.push("speed"); }
     if (player.missile < MAX_MISSILE) pool.push("missile");
-    if (player.weapon !== "double") pool.push("double");
+    if (player.weapon !== "double" || player.doubleLv < MAX_DOUBLE) pool.push("double");
     if (player.laserLv < MAX_LASER) pool.push("laser");
     if (player.options < MAX_OPTION) { pool.push("option"); pool.push("option"); }
     if (player.shield <= 0) pool.push("shield");
+    if (player.homing < MAX_HOMING) pool.push("homing");
     if (!pool.length) return "score";
     return pool[(Math.random() * pool.length) | 0];
   }
@@ -507,7 +542,7 @@
     if (Math.random() > chance) return;
     items.push({
       type: pickDropType(),
-      x: x, y: y, t: 0, r: 12,
+      x: x, y: y, t: 0, r: 18,
     });
   }
 
@@ -524,10 +559,19 @@
       if (player.missile < MAX_MISSILE) player.missile += 1;
       else addScore(500);
     } else if (type === "double") {
-      player.weapon = "double";
-      player.laserLv = 0;
+      if (player.weapon === "double") {
+        if (player.doubleLv < MAX_DOUBLE) player.doubleLv += 1;
+        else addScore(500);
+      } else {
+        player.weapon = "double";
+        player.doubleLv = 1;
+        player.laserLv = 0;
+        player.doubleCount = 0;
+      }
     } else if (type === "laser") {
       player.weapon = "laser";
+      player.doubleLv = 0;
+      player.doubleCount = 0;
       if (player.laserLv < MAX_LASER) player.laserLv += 1;
       else addScore(500);
     } else if (type === "option") {
@@ -535,9 +579,16 @@
       else addScore(500);
     } else if (type === "shield") {
       player.shield = SHIELD_HITS;
+    } else if (type === "homing") {
+      if (player.homing < MAX_HOMING) {
+        player.homing += 1;
+        player.homT = Math.min(player.homT, 0.12);
+      } else addScore(500);
     }
     let label = POWER_LABEL[type] || type;
     if (type === "laser" && player.laserLv > 1) label = "LASER x" + player.laserLv;
+    if (type === "double" && player.doubleLv > 1) label = "DOUBLE x" + player.doubleLv;
+    if (type === "homing" && player.homing > 1) label = "HOMING x" + player.homing;
     spawnFloat(player.x, player.y - 32, label, POWER_COLOR[type] || "#fff");
     updatePowerBar();
   }
@@ -567,18 +618,152 @@
         lv: lv,
       });
     } else {
-      bullets.push({ type: "shot", x: x + 16, y: y, vx: 560, vy: 0, r: 4, dmg: 1, pierce: false });
-      if (player.weapon === "double") {
-        bullets.push({ type: "shot", x: x + 12, y: y - 6, vx: 460, vy: -320, r: 4, dmg: 1, pierce: false });
+      const isDouble = player.weapon === "double";
+      const dLv = isDouble ? Math.max(1, player.doubleLv) : 0;
+      const every = DOUBLE_SPREAD_EVERY[dLv] || 0;
+      if (isDouble && every > 0 && !fromOption) player.doubleCount += 1;
+      const spread = isDouble && every > 0 && player.doubleCount > 0 && player.doubleCount % every === 0;
+      if (spread) {
+        const spd = 560;
+        pushShot(x + 16, y, spd, 0);
+        pushShot(x + 16, y, Math.cos(-DOUBLE_SPREAD_ANG) * spd, Math.sin(-DOUBLE_SPREAD_ANG) * spd);
+        pushShot(x + 16, y, Math.cos(DOUBLE_SPREAD_ANG) * spd, Math.sin(DOUBLE_SPREAD_ANG) * spd);
+      } else {
+        pushShot(x + 16, y, 560, 0);
+      }
+      if (isDouble) {
+        pushShot(x + 12, y - 6, 460, -320);
       }
     }
     if (!fromOption) sfxShot();
+  }
+
+  function pushShot(x, y, vx, vy) {
+    bullets.push({ type: "shot", x: x, y: y, vx: vx, vy: vy, r: 4, dmg: 1, pierce: false });
   }
 
   function fireMissiles() {
     bullets.push({ type: "missile", x: player.x, y: player.y + 8, vx: 140, vy: 180, r: 4, dmg: 2, pierce: false, g: 420 });
     if (player.missile >= 2) {
       bullets.push({ type: "missile", x: player.x, y: player.y - 8, vx: 140, vy: -180, r: 4, dmg: 2, pierce: false, g: -420 });
+    }
+  }
+
+  function homingInterval() {
+    const lv = Math.max(1, Math.min(MAX_HOMING, player.homing || 1));
+    return 3 - (lv - 1) * 0.5;
+  }
+
+  function nearestEnemy(x, y) {
+    let best = null;
+    let bestD = Infinity;
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  function fireHoming() {
+    const lv = Math.max(1, player.homing);
+    const target = nearestEnemy(player.x, player.y);
+    let vx = 340;
+    let vy = 0;
+    if (target) {
+      const dx = target.x - player.x;
+      const dy = target.y - player.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      vx = (dx / len) * 340;
+      vy = (dy / len) * 340;
+    }
+    bullets.push({
+      type: "homing",
+      x: player.x + 14,
+      y: player.y,
+      vx: vx,
+      vy: vy,
+      r: 6,
+      dmg: lv,
+      pierce: false,
+      targetId: target ? target.id : 0,
+      spd: 380,
+    });
+    beep(740, 0.07, "sine", 0.03);
+  }
+
+  function steerHoming(b) {
+    let target = null;
+    if (b.targetId) {
+      for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].id === b.targetId) { target = enemies[i]; break; }
+      }
+    }
+    if (!target) target = nearestEnemy(b.x, b.y);
+    if (!target) return;
+    b.targetId = target.id;
+    const dx = target.x - b.x;
+    const dy = target.y - b.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const spd = b.spd || 380;
+    b.vx = (dx / len) * spd;
+    b.vy = (dy / len) * spd;
+  }
+
+  function updateBombUi() {
+    if (!btnBomb) return;
+    const on = state === "playing";
+    const n = player.bombs || 0;
+    btnBomb.classList.toggle("hidden", !on);
+    btnBomb.classList.toggle("empty", n <= 0);
+    btnBomb.disabled = !on || n <= 0;
+    if (bombCountEl) bombCountEl.textContent = String(n);
+  }
+
+  function useBomb() {
+    if (state !== "playing") return;
+    if ((player.bombs || 0) <= 0) return;
+    player.bombs -= 1;
+    updateBombUi();
+    shocks.push({ x: player.x, y: player.y, r: 18, maxR: 270, life: 0.5, maxLife: 0.5 });
+    flash = 0.1;
+    sfxBomb();
+  }
+
+  function isBombImmune(e) {
+    return e.type === "boss" || e.type === "core";
+  }
+
+  function updateShocks(dt) {
+    for (let i = shocks.length - 1; i >= 0; i--) {
+      const s = shocks[i];
+      s.life -= dt;
+      const u = 1 - Math.max(0, s.life) / s.maxLife;
+      s.r = 18 + (s.maxR - 18) * u;
+      for (let j = eBullets.length - 1; j >= 0; j--) {
+        const b = eBullets[j];
+        const dx = b.x - s.x;
+        const dy = b.y - s.y;
+        if (dx * dx + dy * dy <= (s.r + b.r) * (s.r + b.r)) {
+          burst(b.x, b.y, "#ffe14a", 4);
+          eBullets.splice(j, 1);
+        }
+      }
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const e = enemies[j];
+        if (isBombImmune(e)) continue;
+        const dx = e.x - s.x;
+        const dy = e.y - s.y;
+        if (dx * dx + dy * dy <= (s.r + e.r) * (s.r + e.r)) {
+          killEnemy(e, j);
+        }
+      }
+      if (s.life <= 0) shocks.splice(i, 1);
     }
   }
 
@@ -603,6 +788,7 @@
   }
 
   function hitPlayer(ignoreShield) {
+    if (debugMode) return;
     if (player.invuln > 0) return;
     if (!ignoreShield && player.shield > 0) {
       player.shield -= 1;
@@ -688,6 +874,8 @@
     livesBox.classList.add("hidden");
     app.classList.remove("playing");
     gameoverScreen.classList.remove("hidden");
+    syncDebugUi();
+    updateBombUi();
     resultTitle.textContent = win ? "ステージクリア！" : "ゲームオーバー";
     finalScoreEl.textContent = String(score);
     const isBest = score > best;
@@ -723,11 +911,14 @@
       if (p === "laser") on = player.weapon === "laser";
       if (p === "option") on = player.options > 0;
       if (p === "shield") on = player.shield > 0;
+      if (p === "homing") on = player.homing > 0;
       el.classList.toggle("on", on);
       if (p === "speed" && on) el.textContent = "SPEED x" + player.speedLv;
       else if (p === "missile" && on) el.textContent = player.missile >= 2 ? "MISSILE 2" : "MISSILE";
+      else if (p === "double" && on) el.textContent = player.doubleLv >= 2 ? "DOUBLE x" + player.doubleLv : "DOUBLE";
       else if (p === "laser" && on) el.textContent = player.laserLv >= 2 ? "LASER x" + player.laserLv : "LASER";
       else if (p === "option" && on) el.textContent = "OPTION x" + player.options;
+      else if (p === "homing" && on) el.textContent = player.homing >= 2 ? "HOMING x" + player.homing : "HOMING";
       else el.textContent = p.toUpperCase();
     });
   }
@@ -778,6 +969,7 @@
   window.addEventListener("keydown", function (ev) {
     keys[ev.code] = true;
     if (ev.code === "Space" || ev.code.indexOf("Arrow") === 0) ev.preventDefault();
+    if (!ev.repeat && (ev.code === "KeyZ" || ev.code === "KeyB" || ev.code === "Space")) useBomb();
   });
   window.addEventListener("keyup", function (ev) {
     keys[ev.code] = false;
@@ -829,7 +1021,7 @@
 
     player.fireT -= dt;
     if (player.fireT <= 0) {
-      player.fireT = 0.13;
+      player.fireT = player.weapon === "laser" ? LASER_INTERVAL : SHOT_INTERVAL;
       fireFrom(player.x, player.y, false);
       for (let i = 0; i < player.options; i++) {
         const op = optionPos(i);
@@ -843,18 +1035,26 @@
         fireMissiles();
       }
     }
+    if (player.homing > 0) {
+      player.homT -= dt;
+      if (player.homT <= 0) {
+        player.homT = homingInterval();
+        fireHoming();
+      }
+    }
 
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       if (b.g) b.vy += b.g * dt;
+      if (b.type === "homing") steerHoming(b);
       if (b.life != null) {
         b.life -= dt;
         if (b.life <= 0) { bullets.splice(i, 1); continue; }
       }
-      if (b.type !== "laser" && hitsPillar(b.x, b.y)) { bullets.splice(i, 1); continue; }
-      if (b.type !== "laser" && (b.x > W + 40 || b.y > H + 40 || b.y < -40)) bullets.splice(i, 1);
+      if (b.type !== "laser" && b.type !== "homing" && hitsPillar(b.x, b.y)) { bullets.splice(i, 1); continue; }
+      if (b.type !== "laser" && (b.x > W + 40 || b.x < -40 || b.y > H + 40 || b.y < -40)) bullets.splice(i, 1);
     }
 
     for (let i = enemies.length - 1; i >= 0; i--) {
@@ -943,6 +1143,8 @@
       }
     }
 
+    updateShocks(dt);
+
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       let consumed = false;
@@ -958,8 +1160,8 @@
           hit = dx * dx + dy * dy < rr * rr;
         }
         if (!hit) continue;
-        if (b.type !== "laser" && hitsPillar(b.x, b.y)) { consumed = true; break; }
-        if (e.type === "mirror" && b.type !== "laser") {
+        if (b.type !== "laser" && b.type !== "homing" && hitsPillar(b.x, b.y)) { consumed = true; break; }
+        if (e.type === "mirror" && b.type !== "laser" && b.type !== "homing") {
           eBullets.push({ x: b.x, y: b.y, vx: -Math.abs(b.vx || 280), vy: (b.vy || 0) * -0.4, r: 4 });
           consumed = true;
           break;
@@ -1196,6 +1398,36 @@
       ctx.fillStyle = "#8a7a60";
       ctx.fillRect(h.x + 4, h.y + 8, h.w - 8, h.h - 16);
     }
+  }
+
+  function drawLaserBeam(x, y, lv) {
+    const pulse = 0.38 + 0.5 * (0.5 + 0.5 * Math.sin(time * 2.05));
+    const glow = 4 + lv * 4;
+    const core = 1.5 + lv * 1.2;
+    const len = Math.max(120, W - (x + 18) + 8);
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(120, 240, 255, 1)";
+    ctx.globalAlpha = pulse * 0.5;
+    ctx.lineWidth = glow + 7;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y);
+    ctx.lineTo(x + 18 + len, y);
+    ctx.stroke();
+    ctx.globalAlpha = pulse;
+    ctx.lineWidth = glow;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y);
+    ctx.lineTo(x + 18 + len, y);
+    ctx.stroke();
+    ctx.globalAlpha = Math.min(1, pulse + 0.2);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = core;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y);
+    ctx.lineTo(x + 18 + len, y);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawHakase(x, y, r, ghost) {
@@ -1460,10 +1692,10 @@
       ctx.rotate(it.t * 2);
       ctx.fillStyle = POWER_COLOR[it.type] || "#ffe14a";
       ctx.beginPath();
-      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#1a1020";
-      ctx.font = "800 8px 'M PLUS Rounded 1c', sans-serif";
+      ctx.font = "800 11px 'M PLUS Rounded 1c', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const ch = it.type === "score" ? "500" : it.type.charAt(0).toUpperCase();
@@ -1475,32 +1707,20 @@
 
     for (let i = 0; i < bullets.length; i++) {
       const b = bullets[i];
-      if (b.type === "laser") {
-        const glow = 4 + (b.lv || 1) * 4;
-        const core = 1.5 + (b.lv || 1) * 1.2;
-        ctx.strokeStyle = "rgba(120, 240, 255, 0.55)";
-        ctx.lineWidth = glow + 4;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y);
-        ctx.lineTo(b.x + b.len, b.y);
-        ctx.stroke();
-        ctx.strokeStyle = "rgba(120, 240, 255, 0.95)";
-        ctx.lineWidth = glow;
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y);
-        ctx.lineTo(b.x + b.len, b.y);
-        ctx.stroke();
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = core;
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y);
-        ctx.lineTo(b.x + b.len, b.y);
-        ctx.stroke();
-      } else if (b.type === "missile") {
+      if (b.type === "laser") continue;
+      if (b.type === "missile") {
         ctx.fillStyle = "#6adf6a";
         ctx.beginPath();
         ctx.ellipse(b.x, b.y, 7, 3.5, Math.atan2(b.vy, b.vx), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (b.type === "homing") {
+        ctx.fillStyle = "#e8b8ff";
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
         ctx.fill();
       } else {
         ctx.fillStyle = "#fff0a8";
@@ -1518,7 +1738,32 @@
       ctx.fill();
     }
 
+    for (let i = 0; i < shocks.length; i++) {
+      const s = shocks[i];
+      const a = Math.max(0, s.life / s.maxLife);
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 236, 160, " + (0.35 + a * 0.55) + ")";
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.2 + a * 0.4) + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, Math.max(4, s.r - 8), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (state === "playing" || state === "clear") {
+      if (player.weapon === "laser") {
+        const lv = Math.max(1, player.laserLv);
+        drawLaserBeam(player.x, player.y, lv);
+        for (let i = 0; i < player.options; i++) {
+          const op = optionPos(i);
+          drawLaserBeam(op.x, op.y, lv);
+        }
+      }
       if (player.shield > 0) {
         ctx.strokeStyle = "rgba(255, 122, 184, 0.85)";
         ctx.lineWidth = 3;
@@ -1577,6 +1822,7 @@
     let dt = (ts - lastT) / 1000;
     lastT = ts;
     if (dt > 0.05) dt = 0.05;
+    if (debugMode && state === "playing") dt *= 3;
     if (state === "playing") update(dt);
     const starSpd = state === "playing" ? (themeId() === 4 ? 100 : 55) : 22;
     for (let i = 0; i < stars.length; i++) {
@@ -1591,8 +1837,30 @@
     requestAnimationFrame(loop);
   }
 
-  function startGame() {
+  function syncDebugUi() {
+    const on = debugMode && state === "playing";
+    if (btnDebugTitle) btnDebugTitle.classList.toggle("hidden", !on);
+    if (debugBadge) debugBadge.classList.toggle("hidden", !on);
+  }
+
+  function showTitle() {
+    state = "title";
+    debugMode = false;
+    debugTapCount = 0;
+    gameoverScreen.classList.add("hidden");
+    titleScreen.classList.remove("hidden");
+    hud.classList.add("hidden");
+    stickLayer.classList.add("hidden");
+    livesBox.classList.add("hidden");
+    app.classList.remove("playing");
+    syncDebugUi();
+    updateBombUi();
+  }
+
+  function startGame(asDebug) {
     ensureAudio();
+    debugMode = !!asDebug;
+    debugTapCount = 0;
     resetRun();
     state = "playing";
     titleScreen.classList.add("hidden");
@@ -1602,19 +1870,43 @@
     livesBox.classList.remove("hidden");
     app.classList.add("playing");
     setStickFrom(0, 0);
+    syncDebugUi();
+    updateBombUi();
   }
 
-  document.getElementById("btn-start").addEventListener("click", startGame);
-  document.getElementById("btn-retry").addEventListener("click", startGame);
-  document.getElementById("btn-title").addEventListener("click", function () {
-    state = "title";
-    gameoverScreen.classList.add("hidden");
-    titleScreen.classList.remove("hidden");
-    hud.classList.add("hidden");
-    stickLayer.classList.add("hidden");
-    livesBox.classList.add("hidden");
-    app.classList.remove("playing");
+  document.getElementById("btn-start").addEventListener("click", function () {
+    startGame(false);
   });
+  document.getElementById("btn-retry").addEventListener("click", function () {
+    startGame(false);
+  });
+  document.getElementById("btn-title").addEventListener("click", showTitle);
+  if (btnBomb) {
+    btnBomb.addEventListener("pointerdown", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      useBomb();
+    });
+  }
+  if (btnDebugTitle) {
+    btnDebugTitle.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      showTitle();
+    });
+  }
+  if (brandI) {
+    brandI.addEventListener("pointerup", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (state !== "title") return;
+      debugTapCount += 1;
+      brandI.classList.remove("brand-i-pop");
+      void brandI.offsetWidth;
+      brandI.classList.add("brand-i-pop");
+      if (debugTapCount >= DEBUG_TAPS_NEEDED) startGame(true);
+    });
+  }
   sfxToggle.checked = sfxOn;
   sfxToggle.addEventListener("change", function () {
     sfxOn = sfxToggle.checked;

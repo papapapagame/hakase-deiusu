@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.10">
+  <link rel="stylesheet" href="style.css?v=1.13">
 </head>
 <body>
   <div id="app">
@@ -36,6 +36,7 @@
             <div class="power-slot" data-p="laser">LASER</div>
             <div class="power-slot" data-p="option">OPTION</div>
             <div class="power-slot" data-p="shield">SHIELD</div>
+            <div class="power-slot" data-p="homing">HOMING</div>
           </div>
         </div>
       </div>
@@ -52,14 +53,14 @@
 
       <div id="title-screen" class="overlay">
         <div class="panel title-panel">
-          <p class="brand">はかせでぃうす</p>
+          <p class="brand">はかせで<span id="brand-i" class="brand-i">ぃ</span>うす</p>
           <p class="tagline">
             金色のティラノではかせが宇宙を駆ける‼<br>
             左スティックで移動、ショットは自動。<br>
             4面まで進み、そのあとはエクストラでボスが再登場するぞ！
           </p>
           <div class="howto">
-            <p>SPEED / MISSILE / DOUBLE / LASER / OPTION / SHIELD</p>
+            <p>SPEED / MISSILE / DOUBLE / LASER / OPTION / SHIELD / HOMING</p>
           </div>
           <p class="best-line">ベスト <span id="title-best">0</span></p>
           <label class="sound-toggle">
@@ -68,8 +69,8 @@
             <span class="switch" aria-hidden="true"></span>
           </label>
           <button id="btn-start" class="btn primary" type="button">スタート</button>
-          <p class="hint">キーボードは矢印 / WASD　スマホは左スティック</p>
-          <p class="version" id="app-version">Ver.1.10</p>
+          <p class="hint">キーボードは矢印 / WASD　ボムは Z / スペース　スマホは左スティックと右ボム</p>
+          <p class="version" id="app-version">Ver.1.13</p>
         </div>
       </div>
 
@@ -84,13 +85,23 @@
           </div>
         </div>
       </div>
+
+      <button id="btn-debug-title" class="debug-exit-btn hidden" type="button">タイトルへ</button>
+      <div id="debug-badge" class="debug-badge hidden">DEBUG</div>
     </div>
+
+    <aside id="rail-right" class="rail">
+      <button id="btn-bomb" class="bomb-btn hidden" type="button" aria-label="ボム">
+        <span class="bomb-label">BOMB</span>
+        <span id="bomb-count">1</span>
+      </button>
+    </aside>
   </div>
 
   <div id="rotate-hint">
     <p>画面を横にして遊んでね</p>
   </div>
 
-  <script src="game.js?v=1.10"></script>
+  <script src="game.js?v=1.13"></script>
 </body>
 </html>
