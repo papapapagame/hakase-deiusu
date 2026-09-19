@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.02";
+  const APP_VERSION = "1.03";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const DROP_CHANCE_SMALL = 0.22;
@@ -11,6 +11,7 @@
   const MAX_SPEED = 5;
   const MAX_OPTION = 2;
   const MAX_MISSILE = 2;
+  const MAX_LASER = 3;
   const SHIELD_HITS = 3;
   const PLAYER_R = 22;
   const HIT_R = 7;
@@ -120,6 +121,7 @@
       speedLv: 0,
       missile: 0,
       weapon: "normal",
+      laserLv: 0,
       options: 0,
       shield: 0,
       invuln: 0,
@@ -151,6 +153,7 @@
     player.speedLv = 0;
     player.missile = 0;
     player.weapon = "normal";
+    player.laserLv = 0;
     player.options = 0;
     player.shield = 0;
     player.invuln = 2.2;
@@ -306,7 +309,7 @@
     if (player.speedLv < MAX_SPEED) { pool.push("speed"); pool.push("speed"); }
     if (player.missile < MAX_MISSILE) pool.push("missile");
     if (player.weapon !== "double") pool.push("double");
-    if (player.weapon !== "laser") pool.push("laser");
+    if (player.laserLv < MAX_LASER) pool.push("laser");
     if (player.options < MAX_OPTION) { pool.push("option"); pool.push("option"); }
     if (player.shield <= 0) pool.push("shield");
     if (!pool.length) return "score";
@@ -335,15 +338,20 @@
       else addScore(500);
     } else if (type === "double") {
       player.weapon = "double";
+      player.laserLv = 0;
     } else if (type === "laser") {
       player.weapon = "laser";
+      if (player.laserLv < MAX_LASER) player.laserLv += 1;
+      else addScore(500);
     } else if (type === "option") {
       if (player.options < MAX_OPTION) player.options += 1;
       else addScore(500);
     } else if (type === "shield") {
       player.shield = SHIELD_HITS;
     }
-    spawnFloat(player.x, player.y - 32, POWER_LABEL[type] || type, POWER_COLOR[type] || "#fff");
+    let label = POWER_LABEL[type] || type;
+    if (type === "laser" && player.laserLv > 1) label = "LASER x" + player.laserLv;
+    spawnFloat(player.x, player.y - 32, label, POWER_COLOR[type] || "#fff");
     updatePowerBar();
   }
 
@@ -356,7 +364,21 @@
 
   function fireFrom(x, y, fromOption) {
     if (player.weapon === "laser") {
-      bullets.push({ type: "laser", x: x + 18, y: y, vx: 0, vy: 0, r: 6, len: 390, dmg: 1.2, pierce: true, life: 0.08, hits: {} });
+      const lv = Math.max(1, player.laserLv);
+      bullets.push({
+        type: "laser",
+        x: x + 18,
+        y: y,
+        vx: 0,
+        vy: 0,
+        r: 5 + (lv - 1) * 6,
+        len: Math.max(120, W - (x + 18) + 8),
+        dmg: 1.25 + (lv - 1) * 0.55,
+        pierce: true,
+        life: 0.09,
+        hits: {},
+        lv: lv,
+      });
     } else {
       bullets.push({ type: "shot", x: x + 16, y: y, vx: 560, vy: 0, r: 4, dmg: 1, pierce: false });
       if (player.weapon === "double") {
@@ -479,6 +501,7 @@
       el.classList.toggle("on", on);
       if (p === "speed" && on) el.textContent = "SPEED x" + player.speedLv;
       else if (p === "missile" && on) el.textContent = player.missile >= 2 ? "MISSILE 2" : "MISSILE";
+      else if (p === "laser" && on) el.textContent = player.laserLv >= 2 ? "LASER x" + player.laserLv : "LASER";
       else if (p === "option" && on) el.textContent = "OPTION x" + player.options;
       else el.textContent = p.toUpperCase();
     });
@@ -1007,14 +1030,23 @@
     for (let i = 0; i < bullets.length; i++) {
       const b = bullets[i];
       if (b.type === "laser") {
+        const glow = 4 + (b.lv || 1) * 4;
+        const core = 1.5 + (b.lv || 1) * 1.2;
+        ctx.strokeStyle = "rgba(120, 240, 255, 0.55)";
+        ctx.lineWidth = glow + 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x + b.len, b.y);
+        ctx.stroke();
         ctx.strokeStyle = "rgba(120, 240, 255, 0.95)";
-        ctx.lineWidth = 5;
+        ctx.lineWidth = glow;
         ctx.beginPath();
         ctx.moveTo(b.x, b.y);
         ctx.lineTo(b.x + b.len, b.y);
         ctx.stroke();
         ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = core;
         ctx.beginPath();
         ctx.moveTo(b.x, b.y);
         ctx.lineTo(b.x + b.len, b.y);

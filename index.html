@@ -9,13 +9,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.03">
 </head>
 <body>
   <div id="app">
     <aside id="rail-left" class="rail">
       <div class="rail-top hidden" id="lives-box">
         <div class="hud-lives" id="lives-row"></div>
+        <div id="hud">
+          <div class="hud-score">
+            <span class="hud-label">スコア</span>
+            <span id="score-value">0</span>
+          </div>
+          <div class="hud-best">
+            <span class="hud-label">ベスト</span>
+            <span id="best-value">0</span>
+          </div>
+          <div id="power-bar" class="power-bar" aria-label="装備">
+            <div class="power-slot" data-p="speed">SPEED</div>
+            <div class="power-slot" data-p="missile">MISSILE</div>
+            <div class="power-slot" data-p="double">DOUBLE</div>
+            <div class="power-slot" data-p="laser">LASER</div>
+            <div class="power-slot" data-p="option">OPTION</div>
+            <div class="power-slot" data-p="shield">SHIELD</div>
+          </div>
+        </div>
       </div>
       <div id="stick-layer" class="hidden" aria-hidden="true">
         <div id="stick-base">
@@ -47,7 +65,7 @@
           </label>
           <button id="btn-start" class="btn primary" type="button">スタート</button>
           <p class="hint">キーボードは矢印 / WASD　スマホは左スティック</p>
-          <p class="version" id="app-version">Ver.1.02</p>
+          <p class="version" id="app-version">Ver.1.03</p>
         </div>
       </div>
 
@@ -63,33 +81,12 @@
         </div>
       </div>
     </div>
-
-    <aside id="rail-right" class="rail">
-      <div id="hud" class="hidden">
-        <div class="hud-score">
-          <span class="hud-label">スコア</span>
-          <span id="score-value">0</span>
-        </div>
-        <div class="hud-best">
-          <span class="hud-label">ベスト</span>
-          <span id="best-value">0</span>
-        </div>
-        <div id="power-bar" class="power-bar" aria-label="装備">
-          <div class="power-slot" data-p="speed">SPEED</div>
-          <div class="power-slot" data-p="missile">MISSILE</div>
-          <div class="power-slot" data-p="double">DOUBLE</div>
-          <div class="power-slot" data-p="laser">LASER</div>
-          <div class="power-slot" data-p="option">OPTION</div>
-          <div class="power-slot" data-p="shield">SHIELD</div>
-        </div>
-      </div>
-    </aside>
   </div>
 
   <div id="rotate-hint">
     <p>画面を横にして遊んでね</p>
   </div>
 
-  <script src="game.js"></script>
+  <script src="game.js?v=1.03"></script>
 </body>
 </html>
