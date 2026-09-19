@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.00";
+  const APP_VERSION = "1.01";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const DROP_CHANCE_SMALL = 0.22;
@@ -34,12 +34,16 @@
 
   const canvas = document.getElementById("game-canvas");
   const ctx = canvas.getContext("2d");
+  const app = document.getElementById("app");
   const hud = document.getElementById("hud");
   const scoreEl = document.getElementById("score-value");
   const bestEl = document.getElementById("best-value");
   const titleBestEl = document.getElementById("title-best");
   const livesRow = document.getElementById("lives-row");
+  const livesBox = document.getElementById("lives-box");
+  const railLeft = document.getElementById("rail-left");
   const stickLayer = document.getElementById("stick-layer");
+  const stickBase = document.getElementById("stick-base");
   const stickKnob = document.getElementById("stick-knob");
   const titleScreen = document.getElementById("title-screen");
   const gameoverScreen = document.getElementById("gameover-screen");
@@ -65,7 +69,7 @@
   let eid = 1;
 
   const keys = Object.create(null);
-  const stick = { active: false, id: null, ox: 0, oy: 0, nx: 0, ny: 0 };
+  const stick = { active: false, id: null, ox: 0, oy: 0, nx: 0, ny: 0, scale: 40 };
   const player = makePlayer();
   const bullets = [];
   const eBullets = [];
@@ -435,6 +439,8 @@
     cleared = win;
     stickLayer.classList.add("hidden");
     hud.classList.add("hidden");
+    livesBox.classList.add("hidden");
+    app.classList.remove("playing");
     gameoverScreen.classList.remove("hidden");
     resultTitle.textContent = win ? "ステージクリア！" : "ゲームオーバー";
     finalScoreEl.textContent = String(score);
@@ -479,46 +485,36 @@
     });
   }
 
-  function canvasPoint(ev) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (ev.clientX - rect.left) * (W / rect.width),
-      y: (ev.clientY - rect.top) * (H / rect.height),
-      sx: ev.clientX - rect.left,
-      sy: ev.clientY - rect.top,
-      rw: rect.width,
-      rh: rect.height,
-    };
-  }
-
   function setStickFrom(nx, ny) {
     const mag = Math.sqrt(nx * nx + ny * ny);
-    const max = 46;
     if (mag > 1) { nx /= mag; ny /= mag; }
     stick.nx = nx;
     stick.ny = ny;
+    const size = stickBase ? stickBase.getBoundingClientRect().width : 112;
+    const max = size * 0.26;
     stickKnob.style.transform = "translate(" + (nx * max) + "px," + (ny * max) + "px)";
+  }
+
+  function captureStickOrigin() {
+    const origin = stickBase.getBoundingClientRect();
+    stick.ox = origin.left + origin.width / 2;
+    stick.oy = origin.top + origin.height / 2;
+    stick.scale = Math.max(28, origin.width * 0.42);
   }
 
   function onPointerDown(ev) {
     if (state !== "playing") return;
-    const p = canvasPoint(ev);
-    if (p.x > W * 0.46) return;
     stick.active = true;
     stick.id = ev.pointerId;
-    stick.ox = p.sx;
-    stick.oy = p.sy;
-    setStickFrom(0, 0);
-    try { canvas.setPointerCapture(ev.pointerId); } catch (err) {}
+    captureStickOrigin();
+    setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
+    try { railLeft.setPointerCapture(ev.pointerId); } catch (err) {}
+    ev.preventDefault();
   }
 
   function onPointerMove(ev) {
     if (!stick.active || ev.pointerId !== stick.id) return;
-    const p = canvasPoint(ev);
-    const scale = 52 * (p.rw / W);
-    let nx = (p.sx - stick.ox) / scale;
-    let ny = (p.sy - stick.oy) / scale;
-    setStickFrom(nx, ny);
+    setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
   }
 
   function onPointerUp(ev) {
@@ -528,11 +524,10 @@
     setStickFrom(0, 0);
   }
 
-  canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("pointercancel", onPointerUp);
-  stickLayer.addEventListener("pointerdown", onPointerDown);
+  railLeft.addEventListener("pointerdown", onPointerDown);
+  railLeft.addEventListener("pointermove", onPointerMove);
+  railLeft.addEventListener("pointerup", onPointerUp);
+  railLeft.addEventListener("pointercancel", onPointerUp);
   window.addEventListener("keydown", function (ev) {
     keys[ev.code] = true;
     if (ev.code === "Space" || ev.code.indexOf("Arrow") === 0) ev.preventDefault();
@@ -1117,6 +1112,8 @@
     gameoverScreen.classList.add("hidden");
     hud.classList.remove("hidden");
     stickLayer.classList.remove("hidden");
+    livesBox.classList.remove("hidden");
+    app.classList.add("playing");
     setStickFrom(0, 0);
   }
 
@@ -1128,6 +1125,8 @@
     titleScreen.classList.remove("hidden");
     hud.classList.add("hidden");
     stickLayer.classList.add("hidden");
+    livesBox.classList.add("hidden");
+    app.classList.remove("playing");
   });
   sfxToggle.checked = sfxOn;
   sfxToggle.addEventListener("change", function () {
