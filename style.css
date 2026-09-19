@@ -6,8 +6,8 @@
   --ink: #2a2438;
   --panel: rgba(255, 246, 255, 0.94);
   --shadow: rgba(8, 10, 28, 0.42);
-  --rail-left: max(116px, calc(88px + env(safe-area-inset-left, 0px)));
-  --rail-right: max(84px, calc(68px + env(safe-area-inset-right, 0px)));
+  --rail-left: max(108px, calc(76px + env(safe-area-inset-left, 0px)));
+  --rail-right: max(80px, calc(64px + env(safe-area-inset-right, 0px)));
 }
 
 * {
@@ -22,6 +22,8 @@ html,
 body {
   width: 100%;
   height: 100%;
+  height: 100svh;
+  height: 100dvh;
   overflow: hidden;
   background: #070a18;
   font-family: "M PLUS Rounded 1c", sans-serif;
@@ -32,9 +34,8 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
-  display: grid;
-  grid-template-columns: minmax(var(--rail-left), 1fr) auto minmax(var(--rail-right), 1fr);
-  align-items: center;
+  overflow: hidden;
+  container-type: size;
   background:
     radial-gradient(ellipse at 18% 20%, #3a2a78 0%, transparent 50%),
     radial-gradient(ellipse at 88% 10%, #1a4068 0%, transparent 46%),
@@ -43,14 +44,21 @@ body {
 }
 
 #stage {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  width: min(960px, calc(100dvh * 16 / 9), calc(100% - var(--rail-left) - var(--rail-right)));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100%, calc(100dvh * 16 / 9));
   height: auto;
-  max-height: 100dvh;
-  border-radius: 12px;
-  box-shadow: 0 16px 40px var(--shadow);
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
   overflow: hidden;
+}
+
+@supports (width: 1cqi) {
+  #stage {
+    width: min(100cqi, calc(100cqb * 16 / 9));
+  }
 }
 
 #game-canvas {
@@ -62,22 +70,25 @@ body {
 }
 
 .rail {
-  height: min(100dvh, 100%);
-  min-height: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
 
 #rail-left {
-  align-items: flex-end;
+  left: 0;
+  width: var(--rail-left);
+  align-items: stretch;
   justify-content: space-between;
-  padding: 8px 8px 12px max(8px, env(safe-area-inset-left, 0px));
+  padding: 8px 6px 10px max(6px, env(safe-area-inset-left, 0px));
 }
 
 .rail-top {
-  width: min(100%, 132px);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -162,21 +173,30 @@ body {
 .power-slot[data-p="homing"].on { background: #c77dff; }
 
 #stick-layer {
-  width: min(100%, 128px);
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   pointer-events: none;
 }
 
-#app.playing #rail-left,
+#app.playing #rail-left {
+  pointer-events: auto;
+}
+
 #app.playing #rail-right {
+  pointer-events: none;
+}
+
+#app.playing #btn-bomb {
   pointer-events: auto;
 }
 
 #rail-right {
-  align-items: flex-start;
+  right: 0;
+  width: var(--rail-right);
+  align-items: center;
   justify-content: flex-end;
-  padding: 8px max(8px, env(safe-area-inset-right, 0px)) 16px 4px;
+  padding: 8px max(8px, env(safe-area-inset-right, 0px)) 12px 4px;
 }
 
 .bomb-btn {

@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.14";
+  const APP_VERSION = "1.15";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const DEBUG_TAPS_NEEDED = 10;
