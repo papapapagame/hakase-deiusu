@@ -90,7 +90,8 @@ body {
 }
 
 .hud-score,
-.hud-best {
+.hud-best,
+.hud-stage {
   display: flex;
   flex-direction: column;
   color: #fff8e8;
@@ -104,8 +105,9 @@ body {
 }
 
 #score-value,
-#best-value {
-  font-size: 18px;
+#best-value,
+#stage-value {
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.1;
 }
