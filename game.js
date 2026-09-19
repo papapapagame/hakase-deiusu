@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.13";
+  const APP_VERSION = "1.14";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const DEBUG_TAPS_NEEDED = 10;
@@ -268,7 +268,7 @@
     beginStage(1, true);
   }
 
-  function clearField() {
+  function clearField(keepItems) {
     time = 0;
     waveI = 0;
     spawnAcc = 0;
@@ -277,7 +277,7 @@
     bullets.length = 0;
     eBullets.length = 0;
     enemies.length = 0;
-    items.length = 0;
+    if (!keepItems) items.length = 0;
     shocks.length = 0;
     particles.length = 0;
     floats.length = 0;
@@ -305,7 +305,7 @@
       player.homT = 0;
     }
     stage = n;
-    clearField();
+    clearField(!fullReset);
     player.bombs = 1;
     player.invuln = 2.2;
     player.fireT = 0;
@@ -725,12 +725,25 @@
     if (bombCountEl) bombCountEl.textContent = String(n);
   }
 
+  function bombReach(x, y) {
+    const corners = [[0, 0], [W, 0], [0, H], [W, H]];
+    let max = 0;
+    for (let i = 0; i < corners.length; i++) {
+      const dx = corners[i][0] - x;
+      const dy = corners[i][1] - y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > max) max = d;
+    }
+    return max + 24;
+  }
+
   function useBomb() {
     if (state !== "playing") return;
     if ((player.bombs || 0) <= 0) return;
     player.bombs -= 1;
     updateBombUi();
-    shocks.push({ x: player.x, y: player.y, r: 18, maxR: 270, life: 0.5, maxLife: 0.5 });
+    const maxR = bombReach(player.x, player.y);
+    shocks.push({ x: player.x, y: player.y, r: 18, maxR: maxR, life: 0.7, maxLife: 0.7 });
     flash = 0.1;
     sfxBomb();
   }
@@ -1742,6 +1755,10 @@
       const s = shocks[i];
       const a = Math.max(0, s.life / s.maxLife);
       ctx.save();
+      ctx.fillStyle = "rgba(255, 236, 160, " + (0.06 + a * 0.1) + ")";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
       ctx.strokeStyle = "rgba(255, 236, 160, " + (0.35 + a * 0.55) + ")";
       ctx.lineWidth = 10;
       ctx.beginPath();
