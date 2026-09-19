@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.01";
+  const APP_VERSION = "1.02";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const DROP_CHANCE_SMALL = 0.22;
@@ -95,20 +95,19 @@
   const WAVES = [
     { t: 5, fn: function () { spawnGruntLine(160, 5, 38); } },
     { t: 8, fn: function () { spawnGruntLine(380, 5, 38); } },
-    { t: 12, fn: function () { spawnSine(240, 6); } },
+    { t: 12, fn: function () { spawnSine(240, 5); } },
     { t: 16, fn: function () { spawnGruntLine(120, 4, 42); spawnGruntLine(420, 4, 42); } },
-    { t: 20, fn: function () { spawnDivers(4); } },
-    { t: 24, fn: function () { spawnTurrets(3); } },
-    { t: 28, fn: function () { spawnSine(180, 5); spawnSine(360, 5); } },
-    { t: 33, fn: function () { spawnTanks(2); spawnGruntLine(200, 6, 32); } },
-    { t: 38, fn: function () { spawnSpreads(2); } },
-    { t: 42, fn: function () { spawnDivers(5); spawnTurrets(2); } },
-    { t: 47, fn: function () { spawnMid(); spawnSine(270, 7); } },
-    { t: 54, fn: function () { spawnGruntLine(140, 7, 30); spawnGruntLine(400, 7, 30); } },
-    { t: 60, fn: function () { spawnTanks(3); spawnSpreads(2); } },
-    { t: 66, fn: function () { spawnDivers(6); spawnTurrets(3); } },
-    { t: 72, fn: function () { spawnMid(); spawnSine(200, 6); spawnSine(340, 6); } },
-    { t: 80, fn: function () { spawnBoss(); } },
+    { t: 21, fn: function () { spawnDivers(3); } },
+    { t: 26, fn: function () { spawnTurrets(2); } },
+    { t: 32, fn: function () { spawnSine(180, 4); } },
+    { t: 38, fn: function () { spawnTanks(1); spawnGruntLine(220, 4, 40); } },
+    { t: 44, fn: function () { spawnSpreads(1); } },
+    { t: 50, fn: function () { spawnDivers(3); } },
+    { t: 56, fn: function () { spawnMid(); } },
+    { t: 64, fn: function () { spawnGruntLine(150, 5, 36); spawnGruntLine(390, 5, 36); } },
+    { t: 72, fn: function () { spawnTurrets(2); spawnSine(260, 4); } },
+    { t: 80, fn: function () { spawnSpreads(1); spawnTanks(1); } },
+    { t: 90, fn: function () { spawnBoss(); } },
   ];
 
   function makePlayer() {
@@ -234,7 +233,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "grunt", x: W + 40 + i * gap, y: y, vx: -130, vy: 0,
-        hp: 1, r: 14, score: 100, drop: DROP_CHANCE_SMALL, t: 0, shoot: 2.4 + i * 0.35,
+        hp: 1, r: 14, score: 100, drop: DROP_CHANCE_SMALL, t: 0, shoot: i % 2 === 0 ? 2.8 + i * 0.45 : 99,
       });
     }
   }
@@ -243,7 +242,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "sine", x: W + 50 + i * 44, y: y, vx: -150, vy: 0,
-        hp: 1, r: 13, score: 120, drop: DROP_CHANCE_SMALL, t: i * 0.2, baseY: y, amp: 70, shoot: 2.6 + i * 0.4,
+        hp: 1, r: 13, score: 120, drop: DROP_CHANCE_SMALL, t: i * 0.2, baseY: y, amp: 70, shoot: i % 2 === 0 ? 3.0 + i * 0.5 : 99,
       });
     }
   }
@@ -252,7 +251,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "diver", x: W + 30 + i * 70, y: 40 + Math.random() * 80, vx: -80, vy: 90,
-        hp: 1, r: 15, score: 150, drop: DROP_CHANCE_SMALL, t: 0, shoot: 0.8,
+        hp: 1, r: 15, score: 150, drop: DROP_CHANCE_SMALL, t: 0, shoot: 1.6 + i * 0.5,
       });
     }
   }
@@ -261,7 +260,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "turret", x: W + 80 + i * 160, y: H - 58, vx: -90, vy: 0,
-        hp: 4, r: 18, score: 250, drop: DROP_CHANCE_MID, t: 0, shoot: 0.4 + i * 0.3, ground: true,
+        hp: 4, r: 18, score: 250, drop: DROP_CHANCE_MID, t: 0, shoot: 1.5 + i * 0.55, ground: true,
       });
     }
   }
@@ -270,7 +269,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "tank", x: W + 60 + i * 140, y: H - 52, vx: -70, vy: 0,
-        hp: 6, r: 20, score: 300, drop: DROP_CHANCE_MID, t: 0, shoot: 1, ground: true,
+        hp: 6, r: 20, score: 300, drop: DROP_CHANCE_MID, t: 0, shoot: 1.8 + i * 0.4, ground: true,
       });
     }
   }
@@ -279,7 +278,7 @@
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "spread", x: W + 40 + i * 90, y: 120 + i * 90, vx: -95, vy: 0,
-        hp: 5, r: 18, score: 350, drop: 0.5, t: 0, shoot: 1.1,
+        hp: 5, r: 18, score: 350, drop: 0.5, t: 0, shoot: 1.6 + i * 0.5,
       });
     }
   }
@@ -287,7 +286,7 @@
   function spawnMid() {
     spawnEnemy({
       type: "mid", x: W + 50, y: H / 2, vx: -70, vy: 0,
-      hp: 18, r: 28, score: 800, drop: 1, t: 0, shoot: 0.6,
+      hp: 18, r: 28, score: 800, drop: 1, t: 0, shoot: 1.4,
     });
   }
 
@@ -627,12 +626,12 @@
 
       e.shoot -= dt;
       if (e.shoot <= 0 && e.x < W - 10 && e.x > 40) {
-        if (e.type === "grunt" || e.type === "sine") { enemyShoot(e, false, false); e.shoot = 2.2; }
-        else if (e.type === "diver") { enemyShoot(e, true, false); e.shoot = 1.3; }
-        else if (e.type === "turret") { enemyShoot(e, true, false); e.shoot = 1.1; }
-        else if (e.type === "tank") { enemyShoot(e, true, true); e.shoot = 1.5; }
-        else if (e.type === "spread") { enemyShoot(e, true, true); e.shoot = 1.05; }
-        else if (e.type === "mid") { enemyShoot(e, true, true); e.shoot = 0.7; }
+        if (e.type === "grunt" || e.type === "sine") { enemyShoot(e, false, false); e.shoot = 2.8; }
+        else if (e.type === "diver") { enemyShoot(e, true, false); e.shoot = 2.1; }
+        else if (e.type === "turret") { enemyShoot(e, true, false); e.shoot = 2.0; }
+        else if (e.type === "tank") { enemyShoot(e, true, true); e.shoot = 2.3; }
+        else if (e.type === "spread") { enemyShoot(e, true, true); e.shoot = 1.9; }
+        else if (e.type === "mid") { enemyShoot(e, true, true); e.shoot = 1.5; }
         else if (e.type === "boss") {
           bossFire(e);
           e.shoot = e.phase ? 0.28 : 0.42;
