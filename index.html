@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.20">
+  <link rel="stylesheet" href="style.css?v=1.23">
 </head>
 <body>
   <div id="app">
@@ -64,7 +64,7 @@
           <p class="tagline">
             金色のティラノではかせが宇宙を駆ける‼<br>
             左の操作キーで移動、ショットは自動。<br>
-            4面まで進み、そのあとはエクストラでボスが再登場するぞ！
+            ノーマルは4面のあとエクストラへ。イージーはラスボス撃破でクリア。
           </p>
           <div class="howto">
             <p>SPEED / MISSILE / DOUBLE / LASER / OPTION / SHIELD / HOMING</p>
@@ -75,6 +75,13 @@
             <input id="toggle-sfx" type="checkbox" checked>
             <span class="switch" aria-hidden="true"></span>
           </label>
+          <div class="opt-row">
+            <p class="opt-label">難易度</p>
+            <div class="seg" id="opt-easy">
+              <button type="button" data-easy="0">ノーマル</button>
+              <button type="button" data-easy="1">イージー</button>
+            </div>
+          </div>
           <div class="opt-row">
             <p class="opt-label">操作</p>
             <div class="seg" id="opt-pad-mode">
@@ -92,7 +99,7 @@
           </div>
           <button id="btn-start" class="btn primary" type="button">スタート</button>
           <p class="hint">キーボードは矢印 / WASD　ボムは Z / スペース　スマホは左の操作キーと右ボム</p>
-          <p class="version" id="app-version">Ver.1.20</p>
+          <p class="version" id="app-version">Ver.1.23</p>
         </div>
       </div>
 
@@ -108,11 +115,22 @@
         </div>
       </div>
 
+      <div id="pause-screen" class="overlay hidden">
+        <div class="panel pause-panel">
+          <p class="result-title">一時停止</p>
+          <div class="result-actions">
+            <button id="btn-resume" class="btn primary" type="button">再開</button>
+            <button id="btn-pause-title" class="btn secondary" type="button">タイトルへ</button>
+          </div>
+        </div>
+      </div>
+
       <button id="btn-debug-title" class="debug-exit-btn hidden" type="button">タイトルへ</button>
       <div id="debug-badge" class="debug-badge hidden">DEBUG</div>
     </div>
 
     <aside id="rail-right" class="rail">
+      <button id="btn-pause" class="pause-btn hidden" type="button" aria-label="一時停止">II</button>
       <button id="btn-bomb" class="bomb-btn hidden" type="button" aria-label="ボム">
         <span class="bomb-label">BOMB</span>
         <span id="bomb-count">1</span>
@@ -124,6 +142,6 @@
     <p>画面を横にして遊んでね</p>
   </div>
 
-  <script src="game.js?v=1.20"></script>
+  <script src="game.js?v=1.23"></script>
 </body>
 </html>

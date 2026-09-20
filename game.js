@@ -3,11 +3,12 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.20";
+  const APP_VERSION = "1.23";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
   const PAD_SIZE_KEY = "hakaseDeusPadSize";
+  const EASY_KEY = "hakaseDeusEasy";
   const DEBUG_TAPS_NEEDED = 10;
   const SHOT_INTERVAL = 0.13;
   const LASER_INTERVAL = SHOT_INTERVAL / 1.2;
@@ -20,9 +21,21 @@
   const MAX_DOUBLE = 3;
   const MAX_HOMING = 5;
   const MAX_LIVES = 3;
-  const DOUBLE_SPREAD_EVERY = [0, 0, Math.round(3 / SHOT_INTERVAL), Math.round(2 / SHOT_INTERVAL)];
+  const BGM_VOL = 0.42;
+  const BOSS_WARN_DUR = 2.5;
+  const BGM_FADE_DUR = 1.8;
+  const DOUBLE_SPREAD_EVERY = [
+    0, 0,
+    Math.round(3 / SHOT_INTERVAL),
+    Math.round(2 / SHOT_INTERVAL),
+    Math.round(1 / SHOT_INTERVAL),
+    Math.max(2, Math.round(0.5 / SHOT_INTERVAL)),
+  ];
   const DOUBLE_SPREAD_ANG = 0.16;
-  const SHIELD_HITS = 3;
+  const CHEAT_SEQ = ["U", "U", "D", "D", "L", "R", "L", "R", "B", "B"];
+  const HYPER_LASER_LV = 5;
+  const HYPER_DOUBLE_LV = 5;
+  const DOUBLE_UP_ANG = Math.atan2(-320, 460);
   const PLAYER_R = 22;
   const HIT_R = 7;
 
@@ -71,6 +84,8 @@
   const btnDebugTitle = document.getElementById("btn-debug-title");
   const debugBadge = document.getElementById("debug-badge");
   const btnBomb = document.getElementById("btn-bomb");
+  const btnPause = document.getElementById("btn-pause");
+  const pauseScreen = document.getElementById("pause-screen");
   const bombCountEl = document.getElementById("bomb-count");
   const powerSlots = Array.prototype.slice.call(document.querySelectorAll(".power-slot"));
 
@@ -82,6 +97,7 @@
   let controlMode = localStorage.getItem(PAD_MODE_KEY) === "dpad" ? "dpad" : "stick";
   let padSize = localStorage.getItem(PAD_SIZE_KEY) || "s";
   if (padSize !== "s" && padSize !== "m" && padSize !== "l") padSize = "s";
+  let easyMode = localStorage.getItem(EASY_KEY) === "1";
   let time = 0;
   let lastT = 0;
   let waveI = 0;
@@ -92,6 +108,12 @@
   let audioCtx = null;
   let bgm = null;
   let bgmSrc = "";
+  let bgmFade = 0;
+  let bgmFadeMax = 1;
+  let bossWarn = null;
+  let bossTheme = false;
+  let extraIntro = null;
+  let extraNextT = 0;
   let eid = 1;
   let stage = 1;
   let loopN = 1;
@@ -102,6 +124,10 @@
   let bannerT = 0;
   let debugMode = false;
   let debugTapCount = 0;
+  let paused = false;
+  let cheatUsed = false;
+  let cheatSeqI = 0;
+  let cheatLastDir = "";
   const hazards = [];
   const EXTRA_KINDS = ["deus", "volcano", "idol", "final"];
 
@@ -145,7 +171,7 @@
     { t: 64, fn: function () { spawnGruntLine(150, 5, 36); spawnGruntLine(390, 5, 36); } },
     { t: 72, fn: function () { spawnTurrets(2); spawnSine(260, 4); } },
     { t: 80, fn: function () { spawnSpreads(1); spawnTanks(1); } },
-    { t: 90, fn: function () { spawnBossKind("deus"); } },
+    { t: 90, fn: function () { startBossWarning("deus"); } },
   ];
   const WAVES_2 = [
     { t: 5, fn: function () { spawnBirds(4); } },
@@ -156,7 +182,7 @@
     { t: 46, fn: function () { spawnMid(); spawnBirds(3); } },
     { t: 58, fn: function () { spawnLavaTurrets(2); spawnRocks(3); } },
     { t: 68, fn: function () { spawnBirds(4); spawnSpreads(1); } },
-    { t: 80, fn: function () { spawnBossKind("volcano"); } },
+    { t: 80, fn: function () { startBossWarning("volcano"); } },
   ];
   const WAVES_3 = [
     { t: 6, fn: function () { spawnSine(200, 4); spawnPillars(2); } },
@@ -167,7 +193,7 @@
     { t: 52, fn: function () { spawnMid(); spawnPillars(1); } },
     { t: 64, fn: function () { spawnMirrors(3); spawnSine(180, 3); } },
     { t: 76, fn: function () { spawnTurrets(2); spawnPillars(2); } },
-    { t: 88, fn: function () { spawnBossKind("idol"); } },
+    { t: 88, fn: function () { startBossWarning("idol"); } },
   ];
   const WAVES_4 = [
     { t: 5, fn: function () { spawnGruntLine(160, 4, 40); spawnGruntLine(380, 4, 40); } },
@@ -177,11 +203,9 @@
     { t: 48, fn: function () { spawnSpreads(1); spawnTurrets(2); } },
     { t: 58, fn: function () { spawnMid(); } },
     { t: 70, fn: function () { spawnDivers(4); spawnGruntLine(270, 5, 34); } },
-    { t: 82, fn: function () { spawnBossKind("final"); } },
+    { t: 82, fn: function () { startBossWarning("final"); } },
   ];
-  const WAVES_EXTRA = [
-    { t: 1.6, fn: function () { spawnExtraBoss(); } },
-  ];
+  const WAVES_EXTRA = [];
   const STAGE_WAVES = [null, WAVES_1, WAVES_2, WAVES_3, WAVES_4];
   const STAGE_NAME = [null, "1面 夜の荒野", "2面 溶岩回廊", "3面 地下遺跡", "4面 でぃうすコア"];
 
@@ -202,6 +226,7 @@
       shield: 0,
       homing: 0,
       bombs: 1,
+      hyper: false,
       invuln: 0,
       fireT: 0,
       misT: 0,
@@ -225,8 +250,17 @@
     return Math.max(1, Math.round(n * hpMult()));
   }
 
+  function atkMult() {
+    return easyMode ? 0.5 : 1;
+  }
+
+  function packN(n) {
+    if (!easyMode) return n;
+    return Math.max(1, Math.round(n * 0.5));
+  }
+
   function shootWait(base) {
-    return base / volMult();
+    return (base / volMult()) / atkMult();
   }
 
   function themeId() {
@@ -275,6 +309,10 @@
     extraMode = false;
     extraBossI = 0;
     stageClearT = 0;
+    cheatUsed = false;
+    cheatSeqI = 0;
+    cheatLastDir = "";
+    setPaused(false);
     beginStage(1, true);
   }
 
@@ -284,6 +322,11 @@
     spawnAcc = 0;
     boss = null;
     flash = 0;
+    bossWarn = null;
+    bossTheme = false;
+    extraIntro = null;
+    extraNextT = 0;
+    bgmFade = 0;
     bullets.length = 0;
     eBullets.length = 0;
     enemies.length = 0;
@@ -313,10 +356,11 @@
       player.shield = 0;
       player.homing = 0;
       player.homT = 0;
+      player.hyper = false;
     }
     stage = n;
     clearField(!fullReset);
-    player.bombs = 1;
+    player.bombs = easyMode ? 3 : 1;
     player.invuln = 2.2;
     player.fireT = 0;
     player.misT = 0;
@@ -324,9 +368,14 @@
     player.x = 140;
     player.y = H / 2;
     if (!fullReset) {
-      const before = lives;
-      lives = Math.min(MAX_LIVES, lives + 1);
-      if (lives > before) spawnFloat(player.x, player.y - 36, "LIFE +1", "#ffe14a");
+      if (easyMode) {
+        if (lives < MAX_LIVES) spawnFloat(player.x, player.y - 36, "LIFE MAX", "#ffe14a");
+        lives = MAX_LIVES;
+      } else {
+        const before = lives;
+        lives = Math.min(MAX_LIVES, lives + 1);
+        if (lives > before) spawnFloat(player.x, player.y - 36, "LIFE +1", "#ffe14a");
+      }
     }
     banner = extraMode ? ("EX LOOP " + (loopN - 1) + "  " + EXTRA_KINDS[extraBossI].toUpperCase()) : STAGE_NAME[stage];
     bannerT = 2.4;
@@ -350,7 +399,11 @@
 
   function wantedBgm() {
     if (state !== "playing" || !sfxOn) return "";
-    if (extraMode) return "";
+    if (bossWarn || extraIntro) return "";
+    if (extraMode) return "audio/extra.mp3";
+    const kind = boss && boss.kind;
+    if (kind === "final" || (bossTheme && stage === 4)) return "audio/finalboss.mp3";
+    if (bossTheme || boss) return "audio/boss.mp3";
     if (stage === 1) return "audio/stage1.mp3";
     if (stage === 2) return "audio/stage2.mp3";
     if (stage === 3) return "audio/stage3.mp3";
@@ -365,9 +418,30 @@
     }
     bgm = null;
     bgmSrc = "";
+    bgmFade = 0;
+  }
+
+  function fadeBgmOut(dur) {
+    if (!bgm) {
+      bgmFade = 0;
+      return;
+    }
+    bgmFade = dur;
+    bgmFadeMax = dur || 1;
+  }
+
+  function updateBgmFade(dt) {
+    if (bgmFade <= 0) return;
+    bgmFade -= dt;
+    if (bgm) {
+      const u = Math.max(0, bgmFade / bgmFadeMax);
+      bgm.volume = BGM_VOL * u * u;
+    }
+    if (bgmFade <= 0) stopBgm();
   }
 
   function syncBgm() {
+    if (bgmFade > 0 || bossWarn || extraIntro) return;
     const src = wantedBgm();
     if (!src) {
       stopBgm();
@@ -377,11 +451,90 @@
       stopBgm();
       bgm = new Audio(src);
       bgm.loop = true;
-      bgm.volume = 0.42;
+      bgm.volume = BGM_VOL;
       bgmSrc = src;
+    } else {
+      bgm.volume = BGM_VOL;
     }
     const play = bgm.play();
     if (play && play.catch) play.catch(function () {});
+  }
+
+  function startBossWarning(kind) {
+    if (boss || bossWarn || extraMode) return;
+    bossTheme = true;
+    bossWarn = { t: BOSS_WARN_DUR, maxT: BOSS_WARN_DUR, kind: kind, pulseT: 0, pulseN: 0 };
+    fadeBgmOut(BGM_FADE_DUR);
+    flash = 0.35;
+    playWarningPulse(true);
+  }
+
+  function startExtraIntro() {
+    extraIntro = { t: BOSS_WARN_DUR, maxT: BOSS_WARN_DUR };
+    fadeBgmOut(BGM_FADE_DUR);
+    flash = 0.28;
+  }
+
+  function spawnExtraNextBoss() {
+    spawnBossKind(EXTRA_KINDS[extraBossI] || "deus");
+    if (stageEl) stageEl.textContent = stageLabel();
+    if (bgmSrc !== "audio/extra.mp3") syncBgm();
+  }
+
+  function enterExtra() {
+    extraMode = true;
+    loopN = 2;
+    extraBossI = 0;
+    waveI = 999;
+    boss = null;
+    bossTheme = false;
+    bossWarn = null;
+    extraNextT = 0;
+    eBullets.length = 0;
+    for (let i = enemies.length - 1; i >= 0; i--) enemies.splice(i, 1);
+    hazards.length = 0;
+    player.bombs = 1;
+    player.invuln = 1.6;
+    const before = lives;
+    lives = Math.min(MAX_LIVES, lives + 1);
+    if (lives > before) spawnFloat(player.x, player.y - 36, "LIFE +1", "#ffe14a");
+    if (stageEl) stageEl.textContent = stageLabel();
+    updateHud();
+    updateBombUi();
+    startExtraIntro();
+  }
+
+  function updateExtraIntro(dt) {
+    if (!extraIntro) return;
+    extraIntro.t -= dt;
+    if (extraIntro.t <= 0) {
+      extraIntro = null;
+      spawnExtraNextBoss();
+      syncBgm();
+    }
+  }
+
+  function playWarningPulse(high) {
+    if (!sfxOn) return;
+    beep(high ? 980 : 560, 0.16, "square", 0.09);
+    beep(high ? 980 : 560, 0.16, "sawtooth", 0.03);
+  }
+
+  function updateBossWarn(dt) {
+    if (!bossWarn) return;
+    bossWarn.t -= dt;
+    bossWarn.pulseT -= dt;
+    if (bossWarn.pulseT <= 0) {
+      bossWarn.pulseT = 0.2;
+      playWarningPulse(bossWarn.pulseN % 2 === 0);
+      bossWarn.pulseN += 1;
+    }
+    if (bossWarn.t <= 0) {
+      const kind = bossWarn.kind;
+      bossWarn = null;
+      spawnBossKind(kind);
+      syncBgm();
+    }
   }
 
   function beep(freq, dur, type, vol) {
@@ -443,6 +596,7 @@
   }
 
   function spawnGruntLine(y, n, gap) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "grunt", x: W + 40 + i * gap, y: y, vx: -130, vy: 0,
@@ -452,6 +606,7 @@
   }
 
   function spawnSine(y, n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "sine", x: W + 50 + i * 44, y: y, vx: -150, vy: 0,
@@ -461,6 +616,7 @@
   }
 
   function spawnDivers(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "diver", x: W + 30 + i * 70, y: 40 + Math.random() * 80, vx: -80, vy: 90,
@@ -470,6 +626,7 @@
   }
 
   function spawnTurrets(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "turret", x: W + 80 + i * 160, y: H - 58, vx: -90, vy: 0,
@@ -479,6 +636,7 @@
   }
 
   function spawnTanks(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "tank", x: W + 60 + i * 140, y: H - 52, vx: -70, vy: 0,
@@ -488,6 +646,7 @@
   }
 
   function spawnSpreads(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "spread", x: W + 40 + i * 90, y: 120 + i * 90, vx: -95, vy: 0,
@@ -504,6 +663,7 @@
   }
 
   function spawnBirds(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "bird", x: W + 30 + i * 64, y: 50 + Math.random() * 90, vx: -190, vy: 70,
@@ -513,6 +673,7 @@
   }
 
   function spawnLavaTurrets(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "turret", x: W + 90 + i * 170, y: H - 78, vx: -88, vy: 0,
@@ -522,6 +683,7 @@
   }
 
   function spawnRocks(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "rock", x: W + 40 + i * 90, y: 40 + Math.random() * 80, vx: -70, vy: 90 + Math.random() * 50,
@@ -531,6 +693,7 @@
   }
 
   function spawnMirrors(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       spawnEnemy({
         type: "mirror", x: W + 50 + i * 110, y: 140 + i * 80, vx: -85, vy: 0,
@@ -540,6 +703,7 @@
   }
 
   function spawnPillars(n) {
+    n = packN(n);
     for (let i = 0; i < n; i++) {
       hazards.push({
         type: "pillar", x: W + 80 + i * 220, y: 70 + (i % 2) * 220, w: 28, h: 160,
@@ -568,8 +732,8 @@
         });
       }
     }
-    const names = { deus: "WARNING  でぃうす", volcano: "WARNING  火山竜", idol: "WARNING  機械神像", final: "WARNING  でぃうすコア" };
-    spawnFloat(W / 2, 80, names[kind] || "WARNING", "#ff6a8a");
+    const names = { deus: "でぃうす", volcano: "火山竜", idol: "機械神像", final: "でぃうすコア" };
+    spawnFloat(W / 2, 80, names[kind] || "BOSS", "#ff6a8a");
     beep(200, 0.4, "sawtooth", 0.08);
   }
 
@@ -652,37 +816,63 @@
     return { x: player.x - 28 * (i + 1), y: player.y };
   }
 
+  function distToSeg(px, py, x1, y1, x2, y2) {
+    const vx = x2 - x1;
+    const vy = y2 - y1;
+    const l2 = vx * vx + vy * vy || 1;
+    let t = ((px - x1) * vx + (py - y1) * vy) / l2;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    const dx = px - (x1 + t * vx);
+    const dy = py - (y1 + t * vy);
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function fireLaser(x, y, lv, ang) {
+    ang = ang || 0;
+    const len = Math.max(140, Math.sqrt(W * W + H * H) - 40);
+    bullets.push({
+      type: "laser",
+      x: x + 18,
+      y: y,
+      vx: 0,
+      vy: 0,
+      r: 5 + (lv - 1) * 6,
+      len: len,
+      ang: ang,
+      dmg: 1,
+      pierce: true,
+      life: 0.09,
+      hits: {},
+      lv: lv,
+    });
+  }
+
+  function fireSpread(x, y) {
+    const spd = 560;
+    pushShot(x + 16, y, spd, 0);
+    pushShot(x + 16, y, Math.cos(-DOUBLE_SPREAD_ANG) * spd, Math.sin(-DOUBLE_SPREAD_ANG) * spd);
+    pushShot(x + 16, y, Math.cos(DOUBLE_SPREAD_ANG) * spd, Math.sin(DOUBLE_SPREAD_ANG) * spd);
+  }
+
   function fireFrom(x, y, fromOption) {
-    if (player.weapon === "laser") {
-      const lv = Math.max(1, player.laserLv);
-      bullets.push({
-        type: "laser",
-        x: x + 18,
-        y: y,
-        vx: 0,
-        vy: 0,
-        r: 5 + (lv - 1) * 6,
-        len: Math.max(120, W - (x + 18) + 8),
-        dmg: 1,
-        pierce: true,
-        life: 0.09,
-        hits: {},
-        lv: lv,
-      });
+    if (player.hyper) {
+      const lv = HYPER_LASER_LV;
+      fireLaser(x, y, lv, 0);
+      fireLaser(x, y, lv, DOUBLE_UP_ANG);
+      const every = DOUBLE_SPREAD_EVERY[HYPER_DOUBLE_LV] || 4;
+      if (!fromOption) player.doubleCount += 1;
+      if (every > 0 && player.doubleCount > 0 && player.doubleCount % every === 0) fireSpread(x, y);
+    } else if (player.weapon === "laser") {
+      fireLaser(x, y, Math.max(1, player.laserLv), 0);
     } else {
       const isDouble = player.weapon === "double";
       const dLv = isDouble ? Math.max(1, player.doubleLv) : 0;
       const every = DOUBLE_SPREAD_EVERY[dLv] || 0;
       if (isDouble && every > 0 && !fromOption) player.doubleCount += 1;
       const spread = isDouble && every > 0 && player.doubleCount > 0 && player.doubleCount % every === 0;
-      if (spread) {
-        const spd = 560;
-        pushShot(x + 16, y, spd, 0);
-        pushShot(x + 16, y, Math.cos(-DOUBLE_SPREAD_ANG) * spd, Math.sin(-DOUBLE_SPREAD_ANG) * spd);
-        pushShot(x + 16, y, Math.cos(DOUBLE_SPREAD_ANG) * spd, Math.sin(DOUBLE_SPREAD_ANG) * spd);
-      } else {
-        pushShot(x + 16, y, 560, 0);
-      }
+      if (spread) fireSpread(x, y);
+      else pushShot(x + 16, y, 560, 0);
       if (isDouble) {
         pushShot(x + 12, y - 6, 460, -320);
       }
@@ -772,9 +962,10 @@
     const on = state === "playing";
     const n = player.bombs || 0;
     btnBomb.classList.toggle("hidden", !on);
-    btnBomb.classList.toggle("empty", n <= 0);
-    btnBomb.disabled = !on || n <= 0;
+    btnBomb.classList.toggle("empty", n <= 0 && !paused);
+    btnBomb.disabled = !on || (!paused && n <= 0);
     if (bombCountEl) bombCountEl.textContent = String(n);
+    if (btnPause) btnPause.classList.toggle("hidden", !on);
   }
 
   function bombReach(x, y) {
@@ -790,6 +981,10 @@
   }
 
   function useBomb() {
+    if (paused) {
+      feedCheat("B");
+      return;
+    }
     if (state !== "playing") return;
     if ((player.bombs || 0) <= 0) return;
     player.bombs -= 1;
@@ -838,7 +1033,7 @@
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     const spd = 170 * (0.92 + 0.08 * volMult());
     if (spread) {
-      const arms = 1 + Math.round(2 * volMult());
+      const arms = Math.max(1, Math.round((1 + Math.round(2 * volMult())) * atkMult()));
       for (let i = -(arms - 1) / 2; i <= (arms - 1) / 2; i++) {
         const a = Math.atan2(dy, dx) + i * 0.28;
         eBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
@@ -891,11 +1086,24 @@
     }
     if (isBoss) {
       boss = null;
+      for (let k = enemies.length - 1; k >= 0; k--) {
+        if (enemies[k].type === "core") enemies.splice(k, 1);
+      }
       dropItem(e.x, e.y, 1);
       dropItem(e.x + 20, e.y - 20, 1);
       dropItem(e.x - 20, e.y + 20, 1);
       sfxClear();
-      banner = extraMode ? "EX BOSS CLEAR" : "STAGE CLEAR";
+      if (extraMode) {
+        extraBossI += 1;
+        if (extraBossI >= 4) {
+          extraBossI = 0;
+          loopN += 1;
+        }
+        extraNextT = 1.15;
+        if (stageEl) stageEl.textContent = stageLabel();
+        return;
+      }
+      banner = "STAGE CLEAR";
       bannerT = 2;
       stageClearT = 2.4;
       return;
@@ -905,30 +1113,18 @@
 
   function advanceAfterClear() {
     if (extraMode) {
-      extraBossI += 1;
-      if (extraBossI >= 4) {
-        extraBossI = 0;
-        loopN += 1;
-      }
-      beginStage(5, false);
-      extraMode = true;
-      if (stageEl) stageEl.textContent = stageLabel();
-      banner = "EX LOOP " + (loopN - 1) + "  BOSS " + (extraBossI + 1);
-      bannerT = 2.2;
+      extraNextT = 0.4;
       return;
     }
     if (stage < 4) {
       beginStage(stage + 1, false);
       return;
     }
-    extraMode = true;
-    loopN = 2;
-    extraBossI = 0;
-    beginStage(5, false);
-    extraMode = true;
-    if (stageEl) stageEl.textContent = stageLabel();
-    banner = "EXTRA START";
-    bannerT = 2.4;
+    if (easyMode) {
+      endGame(true);
+      return;
+    }
+    enterExtra();
   }
 
   function endGame(win) {
@@ -939,9 +1135,10 @@
     livesBox.classList.add("hidden");
     app.classList.remove("playing");
     gameoverScreen.classList.remove("hidden");
+    setPaused(false);
     syncDebugUi();
     updateBombUi();
-    resultTitle.textContent = win ? "ステージクリア！" : "ゲームオーバー";
+    resultTitle.textContent = win ? (easyMode ? "イージークリア！" : "ステージクリア！") : "ゲームオーバー";
     finalScoreEl.textContent = String(score);
     const isBest = score > best;
     if (isBest) {
@@ -973,8 +1170,8 @@
       let on = false;
       if (p === "speed") on = player.speedLv > 0;
       if (p === "missile") on = player.missile > 0;
-      if (p === "double") on = player.weapon === "double";
-      if (p === "laser") on = player.weapon === "laser";
+      if (p === "double") on = player.weapon === "double" || player.hyper;
+      if (p === "laser") on = player.weapon === "laser" || player.hyper;
       if (p === "option") on = player.options > 0;
       if (p === "shield") on = player.shield > 0;
       if (p === "homing") on = player.homing > 0;
@@ -1050,6 +1247,7 @@
     captureStickOrigin();
     if (controlMode === "dpad") setDpadFromEvent(ev);
     else setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
+    noteCheatPad();
     try { railLeft.setPointerCapture(ev.pointerId); } catch (err) {}
     ev.preventDefault();
   }
@@ -1058,6 +1256,7 @@
     if (!stick.active || ev.pointerId !== stick.id) return;
     if (controlMode === "dpad") setDpadFromEvent(ev);
     else setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
+    noteCheatPad();
   }
 
   function onPointerUp(ev) {
@@ -1074,6 +1273,16 @@
   window.addEventListener("keydown", function (ev) {
     keys[ev.code] = true;
     if (ev.code === "Space" || ev.code.indexOf("Arrow") === 0) ev.preventDefault();
+    if (!ev.repeat && (ev.code === "Escape" || ev.code === "KeyP")) {
+      if (state === "playing") setPaused(!paused);
+      return;
+    }
+    if (paused && !ev.repeat) {
+      if (ev.code === "ArrowUp" || ev.code === "KeyW") feedCheat("U");
+      if (ev.code === "ArrowDown" || ev.code === "KeyS") feedCheat("D");
+      if (ev.code === "ArrowLeft" || ev.code === "KeyA") feedCheat("L");
+      if (ev.code === "ArrowRight" || ev.code === "KeyD") feedCheat("R");
+    }
     if (!ev.repeat && (ev.code === "KeyZ" || ev.code === "KeyB" || ev.code === "Space")) useBomb();
   });
   window.addEventListener("keyup", function (ev) {
@@ -1100,6 +1309,13 @@
     if (flash > 0) flash -= dt;
     if (player.invuln > 0) player.invuln -= dt;
     if (bannerT > 0) bannerT -= dt;
+    updateBgmFade(dt);
+    updateBossWarn(dt);
+    updateExtraIntro(dt);
+    if (extraNextT > 0) {
+      extraNextT -= dt;
+      if (extraNextT <= 0 && extraMode && !boss && !extraIntro) spawnExtraNextBoss();
+    }
     if (stageClearT > 0) {
       stageClearT -= dt;
       if (stageClearT <= 0) advanceAfterClear();
@@ -1126,7 +1342,7 @@
 
     player.fireT -= dt;
     if (player.fireT <= 0) {
-      player.fireT = player.weapon === "laser" ? LASER_INTERVAL : SHOT_INTERVAL;
+      player.fireT = (player.weapon === "laser" || player.hyper) ? LASER_INTERVAL : SHOT_INTERVAL;
       fireFrom(player.x, player.y, false);
       for (let i = 0; i < player.options; i++) {
         const op = optionPos(i);
@@ -1257,7 +1473,10 @@
         const e = enemies[j];
         let hit = false;
         if (b.type === "laser") {
-          hit = e.x + e.r > b.x && e.x - e.r < b.x + b.len && Math.abs(e.y - b.y) < e.r + b.r;
+          const ang = b.ang || 0;
+          const x2 = b.x + Math.cos(ang) * b.len;
+          const y2 = b.y + Math.sin(ang) * b.len;
+          hit = distToSeg(e.x, e.y, b.x, b.y, x2, y2) < e.r + b.r;
         } else {
           const dx = b.x - e.x;
           const dy = b.y - e.y;
@@ -1351,8 +1570,8 @@
 
   function bossFire(e) {
     const kind = e.kind || "deus";
-    const nFan = Math.round(8 * volMult());
-    const nRing = Math.round(12 * volMult());
+    const nFan = Math.max(3, Math.round(8 * volMult() * atkMult()));
+    const nRing = Math.max(4, Math.round(12 * volMult() * atkMult()));
     if (kind === "volcano") {
       if (e.mouthOpen) {
         enemyShoot(e, true, true);
@@ -1505,32 +1724,35 @@
     }
   }
 
-  function drawLaserBeam(x, y, lv) {
+  function drawLaserBeam(x, y, lv, ang) {
     const pulse = 0.38 + 0.5 * (0.5 + 0.5 * Math.sin(time * 2.05));
     const glow = 4 + lv * 4;
     const core = 1.5 + lv * 1.2;
-    const len = Math.max(120, W - (x + 18) + 8);
+    const len = Math.max(140, Math.sqrt(W * W + H * H) - 40);
+    ang = ang || 0;
     ctx.save();
+    ctx.translate(x + 18, y);
+    ctx.rotate(ang);
     ctx.lineCap = "round";
     ctx.strokeStyle = "rgba(120, 240, 255, 1)";
     ctx.globalAlpha = pulse * 0.5;
     ctx.lineWidth = glow + 7;
     ctx.beginPath();
-    ctx.moveTo(x + 18, y);
-    ctx.lineTo(x + 18 + len, y);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
     ctx.stroke();
     ctx.globalAlpha = pulse;
     ctx.lineWidth = glow;
     ctx.beginPath();
-    ctx.moveTo(x + 18, y);
-    ctx.lineTo(x + 18 + len, y);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
     ctx.stroke();
     ctx.globalAlpha = Math.min(1, pulse + 0.2);
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = core;
     ctx.beginPath();
-    ctx.moveTo(x + 18, y);
-    ctx.lineTo(x + 18 + len, y);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
     ctx.stroke();
     ctx.restore();
   }
@@ -1865,12 +2087,14 @@
     }
 
     if (state === "playing" || state === "clear") {
-      if (player.weapon === "laser") {
-        const lv = Math.max(1, player.laserLv);
-        drawLaserBeam(player.x, player.y, lv);
+      if (player.weapon === "laser" || player.hyper) {
+        const lv = player.hyper ? HYPER_LASER_LV : Math.max(1, player.laserLv);
+        drawLaserBeam(player.x, player.y, lv, 0);
+        if (player.hyper) drawLaserBeam(player.x, player.y, lv, DOUBLE_UP_ANG);
         for (let i = 0; i < player.options; i++) {
           const op = optionPos(i);
-          drawLaserBeam(op.x, op.y, lv);
+          drawLaserBeam(op.x, op.y, lv, 0);
+          if (player.hyper) drawLaserBeam(op.x, op.y, lv, DOUBLE_UP_ANG);
         }
       }
       if (player.shield > 0) {
@@ -1912,6 +2136,36 @@
       ctx.fillRect(0, 0, W, H);
     }
 
+    if (bossWarn) {
+      const blink = Math.floor(time * 8) % 2 === 0;
+      ctx.fillStyle = "rgba(160, 0, 36, " + (blink ? 0.22 : 0.1) + ")";
+      ctx.fillRect(0, 0, W, H);
+      if (blink) {
+        ctx.fillStyle = "#ff3a5a";
+        ctx.font = "800 34px 'M PLUS Rounded 1c', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("////// WARNING //////", W / 2, H * 0.42);
+        ctx.font = "800 18px 'M PLUS Rounded 1c', sans-serif";
+        ctx.fillStyle = "#fff0a8";
+        ctx.fillText("WARNING  WARNING  WARNING", W / 2, H * 0.42 + 36);
+      }
+    }
+
+    if (extraIntro) {
+      const blink = Math.floor(time * 8) % 2 === 0;
+      ctx.fillStyle = "rgba(70, 20, 120, " + (blink ? 0.24 : 0.1) + ")";
+      ctx.fillRect(0, 0, W, H);
+      if (blink) {
+        ctx.fillStyle = "#ffe14a";
+        ctx.font = "800 32px 'M PLUS Rounded 1c', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("//////ＥＸＴＲＡ ＳＴＡＧＥ//////", W / 2, H * 0.42);
+        ctx.font = "800 16px 'M PLUS Rounded 1c', sans-serif";
+        ctx.fillStyle = "#c77dff";
+        ctx.fillText("BOSS RUSH", W / 2, H * 0.42 + 36);
+      }
+    }
+
     if (bannerT > 0 && banner) {
       ctx.globalAlpha = Math.min(1, bannerT);
       ctx.fillStyle = "#fff8e8";
@@ -1932,13 +2186,13 @@
     lastT = ts;
     if (dt > 0.05) dt = 0.05;
     if (debugMode && state === "playing") dt *= 3;
-    if (state === "playing") update(dt);
-    const starSpd = state === "playing" ? (themeId() === 4 ? 100 : 55) : 22;
+    if (state === "playing" && !paused) update(dt);
+    const starSpd = (state === "playing" && !paused) ? (themeId() === 4 ? 100 : 55) : 22;
     for (let i = 0; i < stars.length; i++) {
       stars[i].x -= starSpd * stars[i].z * dt;
       if (stars[i].x < 0) stars[i].x += W;
     }
-    if (state === "playing") {
+    if (state === "playing" && !paused) {
       const hs = themeId() === 4 ? 140 : 90;
       for (let i = 0; i < hills.length; i++) hills[i].x -= hs * dt;
     }
@@ -1952,6 +2206,71 @@
     if (debugBadge) debugBadge.classList.toggle("hidden", !on);
   }
 
+  function cheatDirFromAxis(x, y) {
+    if (Math.abs(x) < 0.45 && Math.abs(y) < 0.45) return "";
+    if (Math.abs(x) > Math.abs(y)) return x > 0 ? "R" : "L";
+    return y > 0 ? "D" : "U";
+  }
+
+  function noteCheatPad() {
+    if (!paused) return;
+    const d = cheatDirFromAxis(stick.nx, stick.ny);
+    if (d && d !== cheatLastDir) feedCheat(d);
+    cheatLastDir = d;
+  }
+
+  function feedCheat(sym) {
+    if (!paused || cheatUsed) return;
+    if (CHEAT_SEQ[cheatSeqI] === sym) {
+      cheatSeqI += 1;
+      if (cheatSeqI >= CHEAT_SEQ.length) {
+        applyCheat();
+        cheatSeqI = 0;
+      }
+    } else {
+      cheatSeqI = CHEAT_SEQ[0] === sym ? 1 : 0;
+    }
+  }
+
+  function applyCheat() {
+    if (cheatUsed) return;
+    cheatUsed = true;
+    lives = MAX_LIVES;
+    player.speedLv = MAX_SPEED;
+    player.missile = MAX_MISSILE;
+    player.weapon = "laser";
+    player.hyper = true;
+    player.laserLv = HYPER_LASER_LV;
+    player.doubleLv = HYPER_DOUBLE_LV;
+    player.doubleCount = 0;
+    player.options = MAX_OPTION;
+    player.shield = SHIELD_HITS;
+    player.homing = MAX_HOMING;
+    player.homT = 0.08;
+    player.invuln = Math.max(player.invuln, 1.4);
+    spawnFloat(player.x, player.y - 40, "MAX POWER", "#c77dff");
+    burst(player.x, player.y, "#ffe14a", 28);
+    sfxItem();
+    sfxClear();
+    updateHud();
+  }
+
+  function setPaused(on) {
+    if (on && state !== "playing") return;
+    paused = !!on;
+    if (pauseScreen) pauseScreen.classList.toggle("hidden", !paused);
+    app.classList.toggle("paused", paused);
+    updateBombUi();
+    if (paused) {
+      cheatSeqI = 0;
+      cheatLastDir = "";
+      if (bgm) bgm.pause();
+    } else if (bgm && sfxOn && bgmSrc) {
+      const play = bgm.play();
+      if (play && play.catch) play.catch(function () {});
+    }
+  }
+
   function applyControlSettings() {
     app.setAttribute("data-pad-size", padSize);
     app.setAttribute("data-pad-mode", controlMode);
@@ -1962,6 +2281,10 @@
     });
     document.querySelectorAll("#opt-pad-size button").forEach(function (btn) {
       btn.classList.toggle("on", btn.getAttribute("data-size") === padSize);
+    });
+    document.querySelectorAll("#opt-easy button").forEach(function (btn) {
+      const want = easyMode ? "1" : "0";
+      btn.classList.toggle("on", btn.getAttribute("data-easy") === want);
     });
     syncDpadVisual(0, 0);
   }
@@ -1976,6 +2299,7 @@
     stickLayer.classList.add("hidden");
     livesBox.classList.add("hidden");
     app.classList.remove("playing");
+    setPaused(false);
     syncDebugUi();
     updateBombUi();
     syncBgm();
@@ -2037,7 +2361,8 @@
     sfxOn = sfxToggle.checked;
     localStorage.setItem(SFX_KEY, sfxOn ? "1" : "0");
     ensureAudio();
-    syncBgm();
+    if (!sfxOn) stopBgm();
+    else syncBgm();
   });
   document.getElementById("opt-pad-mode").addEventListener("click", function (ev) {
     const btn = ev.target.closest("button[data-mode]");
@@ -2055,6 +2380,35 @@
     localStorage.setItem(PAD_SIZE_KEY, padSize);
     applyControlSettings();
   });
+  document.getElementById("opt-easy").addEventListener("click", function (ev) {
+    const btn = ev.target.closest("button[data-easy]");
+    if (!btn) return;
+    easyMode = btn.getAttribute("data-easy") === "1";
+    localStorage.setItem(EASY_KEY, easyMode ? "1" : "0");
+    applyControlSettings();
+  });
+  if (btnPause) {
+    btnPause.addEventListener("pointerdown", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (state === "playing") setPaused(!paused);
+    });
+  }
+  const btnResume = document.getElementById("btn-resume");
+  if (btnResume) {
+    btnResume.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      setPaused(false);
+    });
+  }
+  const btnPauseTitle = document.getElementById("btn-pause-title");
+  if (btnPauseTitle) {
+    btnPauseTitle.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      setPaused(false);
+      showTitle();
+    });
+  }
   applyControlSettings();
 
   document.getElementById("app-version").textContent = "Ver." + APP_VERSION;

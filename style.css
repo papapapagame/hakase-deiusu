@@ -200,7 +200,8 @@ body {
   pointer-events: none;
 }
 
-#app.playing #btn-bomb {
+#app.playing #btn-bomb,
+#app.playing #btn-pause {
   pointer-events: auto;
 }
 
@@ -208,8 +209,33 @@ body {
   right: 0;
   width: var(--rail-right);
   align-items: center;
-  justify-content: flex-end;
-  padding: 8px max(8px, env(safe-area-inset-right, 0px)) 12px 4px;
+  justify-content: space-between;
+  padding: 10px max(8px, env(safe-area-inset-right, 0px)) 12px 4px;
+}
+
+.pause-btn {
+  width: min(56px, 100%);
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(20, 18, 40, 0.72);
+  color: #fff8e8;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.pause-btn:active {
+  transform: scale(0.94);
+}
+
+.pause-panel {
+  width: min(88%, 360px);
 }
 
 .bomb-btn {
