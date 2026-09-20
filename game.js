@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.24";
+  const APP_VERSION = "1.25";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -21,6 +21,7 @@
   const MAX_DOUBLE = 3;
   const MAX_HOMING = 5;
   const MAX_LIVES = 3;
+  const SHIELD_HITS = 3;
   const BGM_VOL = 0.42;
   const BOSS_WARN_DUR = 2.5;
   const BGM_FADE_DUR = 1.8;
@@ -2179,23 +2180,27 @@
   }
 
   function loop(ts) {
-    if (!lastT) lastT = ts;
-    let dt = (ts - lastT) / 1000;
-    lastT = ts;
-    if (dt > 0.05) dt = 0.05;
-    if (debugMode && state === "playing") dt *= 3;
-    if (state === "playing" && !paused) update(dt);
-    else if (state === "playing" && paused) noteCheatPad();
-    const starSpd = (state === "playing" && !paused) ? (themeId() === 4 ? 100 : 55) : 22;
-    for (let i = 0; i < stars.length; i++) {
-      stars[i].x -= starSpd * stars[i].z * dt;
-      if (stars[i].x < 0) stars[i].x += W;
+    try {
+      if (!lastT) lastT = ts;
+      let dt = (ts - lastT) / 1000;
+      lastT = ts;
+      if (dt > 0.05) dt = 0.05;
+      if (debugMode && state === "playing") dt *= 3;
+      if (state === "playing" && !paused) update(dt);
+      else if (state === "playing" && paused) noteCheatPad();
+      const starSpd = (state === "playing" && !paused) ? (themeId() === 4 ? 100 : 55) : 22;
+      for (let i = 0; i < stars.length; i++) {
+        stars[i].x -= starSpd * stars[i].z * dt;
+        if (stars[i].x < 0) stars[i].x += W;
+      }
+      if (state === "playing" && !paused) {
+        const hs = themeId() === 4 ? 140 : 90;
+        for (let i = 0; i < hills.length; i++) hills[i].x -= hs * dt;
+      }
+      draw();
+    } catch (err) {
+      if (typeof console !== "undefined" && console.error) console.error(err);
     }
-    if (state === "playing" && !paused) {
-      const hs = themeId() === 4 ? 140 : 90;
-      for (let i = 0; i < hills.length; i++) hills[i].x -= hs * dt;
-    }
-    draw();
     requestAnimationFrame(loop);
   }
 
