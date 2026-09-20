@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.16";
+  const APP_VERSION = "1.17";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -90,6 +90,8 @@
   let cleared = false;
   let flash = 0;
   let audioCtx = null;
+  let bgm = null;
+  let bgmSrc = "";
   let eid = 1;
   let stage = 1;
   let loopN = 1;
@@ -331,6 +333,7 @@
     if (stageEl) stageEl.textContent = stageLabel();
     updateHud();
     updateBombUi();
+    syncBgm();
   }
 
   function moveSpeed() {
@@ -343,6 +346,38 @@
       if (AC) audioCtx = new AC();
     }
     if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function wantedBgm() {
+    if (state !== "playing" || !sfxOn) return "";
+    if (!extraMode && stage === 1) return "audio/stage1.mp3";
+    return "";
+  }
+
+  function stopBgm() {
+    if (bgm) {
+      bgm.pause();
+      try { bgm.currentTime = 0; } catch (err) {}
+    }
+    bgm = null;
+    bgmSrc = "";
+  }
+
+  function syncBgm() {
+    const src = wantedBgm();
+    if (!src) {
+      stopBgm();
+      return;
+    }
+    if (!bgm || bgmSrc !== src) {
+      stopBgm();
+      bgm = new Audio(src);
+      bgm.loop = true;
+      bgm.volume = 0.42;
+      bgmSrc = src;
+    }
+    const play = bgm.play();
+    if (play && play.catch) play.catch(function () {});
   }
 
   function beep(freq, dur, type, vol) {
@@ -912,6 +947,7 @@
       titleBestEl.textContent = String(best);
     }
     newBestEl.classList.toggle("hidden", !isBest);
+    syncBgm();
   }
 
   function updateHud() {
@@ -1938,6 +1974,7 @@
     app.classList.remove("playing");
     syncDebugUi();
     updateBombUi();
+    syncBgm();
   }
 
   function startGame(asDebug) {
@@ -1955,6 +1992,7 @@
     setStickFrom(0, 0);
     syncDebugUi();
     updateBombUi();
+    syncBgm();
   }
 
   document.getElementById("btn-start").addEventListener("click", function () {
@@ -1995,6 +2033,7 @@
     sfxOn = sfxToggle.checked;
     localStorage.setItem(SFX_KEY, sfxOn ? "1" : "0");
     ensureAudio();
+    syncBgm();
   });
   document.getElementById("opt-pad-mode").addEventListener("click", function (ev) {
     const btn = ev.target.closest("button[data-mode]");
