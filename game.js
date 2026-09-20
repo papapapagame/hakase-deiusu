@@ -3,8 +3,10 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.26";
+  const APP_VERSION = "1.27";
   const BEST_KEY = "hakaseDeusBest";
+  const BEST_NORMAL_KEY = "hakaseDeusBestNormal";
+  const BEST_CHEAT_KEY = "hakaseDeusBestCheat";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
   const PAD_SIZE_KEY = "hakaseDeusPadSize";
@@ -66,6 +68,7 @@
   const scoreEl = document.getElementById("score-value");
   const bestEl = document.getElementById("best-value");
   const titleBestEl = document.getElementById("title-best");
+  const titleBestCheatEl = document.getElementById("title-best-cheat");
   const stageEl = document.getElementById("stage-value");
   const livesRow = document.getElementById("lives-row");
   const livesBox = document.getElementById("lives-box");
@@ -93,7 +96,15 @@
 
   let state = "title";
   let score = 0;
-  let best = Number(localStorage.getItem(BEST_KEY) || 0);
+  let bestNormal = Number(localStorage.getItem(BEST_NORMAL_KEY));
+  if (!isFinite(bestNormal) || bestNormal < 0) bestNormal = 0;
+  if (localStorage.getItem(BEST_NORMAL_KEY) == null) {
+    const oldBest = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestNormal = isFinite(oldBest) && oldBest > 0 ? oldBest : 0;
+    if (bestNormal > 0) localStorage.setItem(BEST_NORMAL_KEY, String(bestNormal));
+  }
+  let bestCheat = Number(localStorage.getItem(BEST_CHEAT_KEY) || 0);
+  if (!isFinite(bestCheat) || bestCheat < 0) bestCheat = 0;
   let sfxOn = localStorage.getItem(SFX_KEY) !== "0";
   let lives = MAX_LIVES;
   let controlMode = localStorage.getItem(PAD_MODE_KEY) === "dpad" ? "dpad" : "stick";
@@ -1198,20 +1209,37 @@
     updateBombUi();
     resultTitle.textContent = win ? (easyMode ? "イージークリア！" : "ステージクリア！") : "ゲームオーバー";
     finalScoreEl.textContent = String(score);
-    const isBest = score > best;
-    if (isBest) {
-      best = score;
-      localStorage.setItem(BEST_KEY, String(best));
-      bestEl.textContent = String(best);
-      titleBestEl.textContent = String(best);
+    const recordable = !debugMode && !easyMode;
+    let isBest = false;
+    if (recordable && cheatUsed) {
+      if (score > bestCheat) {
+        bestCheat = score;
+        localStorage.setItem(BEST_CHEAT_KEY, String(bestCheat));
+        isBest = true;
+      }
+    } else if (recordable) {
+      if (score > bestNormal) {
+        bestNormal = score;
+        localStorage.setItem(BEST_NORMAL_KEY, String(bestNormal));
+        isBest = true;
+      }
     }
+    renderBestScores();
     newBestEl.classList.toggle("hidden", !isBest);
     syncBgm();
   }
 
+  function renderBestScores() {
+    const normal = Math.max(0, bestNormal | 0);
+    const cheat = Math.max(0, bestCheat | 0);
+    if (bestEl) bestEl.textContent = normal + "  (" + cheat + ")";
+    if (titleBestEl) titleBestEl.textContent = String(normal);
+    if (titleBestCheatEl) titleBestCheatEl.textContent = String(cheat);
+  }
+
   function updateHud() {
     scoreEl.textContent = String(score);
-    bestEl.textContent = String(best);
+    renderBestScores();
     livesRow.innerHTML = "";
     const n = Math.max(0, lives);
     for (let i = 0; i < n; i++) {
@@ -2483,7 +2511,6 @@
   applyControlSettings();
 
   document.getElementById("app-version").textContent = "Ver." + APP_VERSION;
-  bestEl.textContent = String(best);
-  titleBestEl.textContent = String(best);
+  renderBestScores();
   requestAnimationFrame(loop);
 })();

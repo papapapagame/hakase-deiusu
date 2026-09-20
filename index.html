@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.26">
+  <link rel="stylesheet" href="style.css?v=1.27">
 </head>
 <body>
   <div id="app">
@@ -69,7 +69,13 @@
           <div class="howto">
             <p>SPEED / MISSILE / DOUBLE / LASER / OPTION / SHIELD / HOMING</p>
           </div>
-          <p class="best-line">ベスト <span id="title-best">0</span></p>
+          <div class="best-block">
+            <p class="best-label">ベストスコア</p>
+            <p class="best-scores">
+              <span id="title-best">0</span>
+              <span class="best-cheat">(<span id="title-best-cheat">0</span>)</span>
+            </p>
+          </div>
           <label class="sound-toggle">
             <span class="sound-toggle-label">効果音</span>
             <input id="toggle-sfx" type="checkbox" checked>
@@ -99,7 +105,7 @@
           </div>
           <button id="btn-start" class="btn primary" type="button">スタート</button>
           <p class="hint">キーボードは矢印 / WASD　ボムは Z / スペース　スマホは左の操作キーと右ボム</p>
-          <p class="version" id="app-version">Ver.1.26</p>
+          <p class="version" id="app-version">Ver.1.27</p>
         </div>
       </div>
 
@@ -143,6 +149,6 @@
     <p>画面を横にして遊んでね</p>
   </div>
 
-  <script src="game.js?v=1.26"></script>
+  <script src="game.js?v=1.27"></script>
 </body>
 </html>

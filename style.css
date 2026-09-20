@@ -545,6 +545,31 @@ body {
   color: #6a4a10;
 }
 
+.best-block {
+  margin: 10px 0 8px;
+}
+
+.best-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #6a4a10;
+}
+
+.best-scores {
+  margin-top: 2px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #2a2438;
+}
+
+.best-cheat {
+  margin-left: 0.6em;
+  font-weight: 800;
+  color: #6a6080;
+}
+
 .best-line {
   font-size: 14px;
   font-weight: 800;
