@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.23";
+  const APP_VERSION = "1.24";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -86,6 +86,7 @@
   const btnBomb = document.getElementById("btn-bomb");
   const btnPause = document.getElementById("btn-pause");
   const pauseScreen = document.getElementById("pause-screen");
+  const cheatFlashEl = document.getElementById("cheat-flash");
   const bombCountEl = document.getElementById("bomb-count");
   const powerSlots = Array.prototype.slice.call(document.querySelectorAll(".power-slot"));
 
@@ -1264,6 +1265,7 @@
     stick.active = false;
     stick.id = null;
     setStickFrom(0, 0);
+    noteCheatPad();
   }
 
   railLeft.addEventListener("pointerdown", onPointerDown);
@@ -1277,16 +1279,12 @@
       if (state === "playing") setPaused(!paused);
       return;
     }
-    if (paused && !ev.repeat) {
-      if (ev.code === "ArrowUp" || ev.code === "KeyW") feedCheat("U");
-      if (ev.code === "ArrowDown" || ev.code === "KeyS") feedCheat("D");
-      if (ev.code === "ArrowLeft" || ev.code === "KeyA") feedCheat("L");
-      if (ev.code === "ArrowRight" || ev.code === "KeyD") feedCheat("R");
-    }
+    if (paused) noteCheatPad();
     if (!ev.repeat && (ev.code === "KeyZ" || ev.code === "KeyB" || ev.code === "Space")) useBomb();
   });
   window.addEventListener("keyup", function (ev) {
     keys[ev.code] = false;
+    if (paused) noteCheatPad();
   });
 
   function inputAxis() {
@@ -2187,6 +2185,7 @@
     if (dt > 0.05) dt = 0.05;
     if (debugMode && state === "playing") dt *= 3;
     if (state === "playing" && !paused) update(dt);
+    else if (state === "playing" && paused) noteCheatPad();
     const starSpd = (state === "playing" && !paused) ? (themeId() === 4 ? 100 : 55) : 22;
     for (let i = 0; i < stars.length; i++) {
       stars[i].x -= starSpd * stars[i].z * dt;
@@ -2207,28 +2206,36 @@
   }
 
   function cheatDirFromAxis(x, y) {
-    if (Math.abs(x) < 0.45 && Math.abs(y) < 0.45) return "";
+    if (Math.abs(x) < 0.32 && Math.abs(y) < 0.32) return "";
     if (Math.abs(x) > Math.abs(y)) return x > 0 ? "R" : "L";
     return y > 0 ? "D" : "U";
   }
 
   function noteCheatPad() {
-    if (!paused) return;
-    const d = cheatDirFromAxis(stick.nx, stick.ny);
+    if (!paused || cheatUsed) return;
+    const a = inputAxis();
+    const d = cheatDirFromAxis(a.x, a.y);
     if (d && d !== cheatLastDir) feedCheat(d);
     cheatLastDir = d;
+  }
+
+  function syncCheatFlash() {
+    if (!cheatFlashEl) return;
+    cheatFlashEl.classList.toggle("hidden", !(paused && cheatUsed));
   }
 
   function feedCheat(sym) {
     if (!paused || cheatUsed) return;
     if (CHEAT_SEQ[cheatSeqI] === sym) {
       cheatSeqI += 1;
+      beep(360 + cheatSeqI * 70, 0.06, "square", 0.04);
       if (cheatSeqI >= CHEAT_SEQ.length) {
         applyCheat();
         cheatSeqI = 0;
       }
     } else {
       cheatSeqI = CHEAT_SEQ[0] === sym ? 1 : 0;
+      if (sym === CHEAT_SEQ[0]) beep(360 + 70, 0.06, "square", 0.04);
     }
   }
 
@@ -2253,6 +2260,7 @@
     sfxItem();
     sfxClear();
     updateHud();
+    syncCheatFlash();
   }
 
   function setPaused(on) {
@@ -2269,6 +2277,7 @@
       const play = bgm.play();
       if (play && play.catch) play.catch(function () {});
     }
+    syncCheatFlash();
   }
 
   function applyControlSettings() {
