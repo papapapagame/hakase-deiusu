@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.17";
+  const APP_VERSION = "1.18";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -350,7 +350,9 @@
 
   function wantedBgm() {
     if (state !== "playing" || !sfxOn) return "";
-    if (!extraMode && stage === 1) return "audio/stage1.mp3";
+    if (extraMode) return "";
+    if (stage === 1) return "audio/stage1.mp3";
+    if (stage === 2) return "audio/stage2.mp3";
     return "";
   }
 
