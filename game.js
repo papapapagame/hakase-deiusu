@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.28";
+  const APP_VERSION = "1.29";
   const BEST_KEY = "hakaseDeusBest";
   const BEST_NORMAL_KEY = "hakaseDeusBestNormal";
   const BEST_CHEAT_KEY = "hakaseDeusBestCheat";
@@ -2526,6 +2526,25 @@
     });
   }
   applyControlSettings();
+
+  window.addEventListener("contextmenu", function (ev) {
+    ev.preventDefault();
+  });
+  window.addEventListener("selectstart", function (ev) {
+    ev.preventDefault();
+  });
+  window.addEventListener("dragstart", function (ev) {
+    ev.preventDefault();
+  });
+  function isUiControl(el) {
+    return !!(el && el.closest && el.closest("button, input, textarea, label, a, .seg"));
+  }
+  function blockCallout(ev) {
+    if (isUiControl(ev.target)) return;
+    ev.preventDefault();
+  }
+  document.addEventListener("touchstart", blockCallout, { passive: false });
+  document.addEventListener("touchmove", blockCallout, { passive: false });
 
   document.getElementById("app-version").textContent = "Ver." + APP_VERSION;
   renderBestScores();

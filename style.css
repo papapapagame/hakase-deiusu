@@ -16,6 +16,9 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
   user-select: none;
 }
 
@@ -29,6 +32,10 @@ body {
   background: #070a18;
   font-family: "M PLUS Rounded 1c", sans-serif;
   color: var(--ink);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
 #app {
@@ -190,6 +197,10 @@ body {
   align-items: flex-end;
   pointer-events: none;
   overflow: visible;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
 #app.playing #rail-left {
@@ -230,7 +241,7 @@ body {
   letter-spacing: 0.08em;
   cursor: pointer;
   pointer-events: auto;
-  touch-action: manipulation;
+  touch-action: none;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
 }
 
@@ -275,7 +286,7 @@ body {
   justify-content: center;
   gap: 0;
   pointer-events: auto;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .bomb-btn .bomb-label {
@@ -309,6 +320,8 @@ body {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
   border: 2px solid rgba(255, 255, 255, 0.22);
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 #stick-cross {
@@ -338,6 +351,8 @@ body {
   width: var(--pad-size);
   height: var(--pad-size);
   flex-shrink: 0;
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 .dpad-btn {
@@ -472,7 +487,8 @@ body {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  touch-action: none;
   transform-origin: center;
 }
 
