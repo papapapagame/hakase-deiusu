@@ -8,6 +8,7 @@
   --shadow: rgba(8, 10, 28, 0.42);
   --rail-left: max(108px, calc(76px + env(safe-area-inset-left, 0px)));
   --rail-right: max(80px, calc(64px + env(safe-area-inset-right, 0px)));
+  --pad-size: 96px;
 }
 
 * {
@@ -36,6 +37,7 @@ body {
   height: 100%;
   overflow: hidden;
   container-type: size;
+  --rail-left: max(108px, calc(var(--pad-size) + env(safe-area-inset-left, 0px) + 12px));
   background:
     radial-gradient(ellipse at 18% 20%, #3a2a78 0%, transparent 50%),
     radial-gradient(ellipse at 88% 10%, #1a4068 0%, transparent 46%),
@@ -85,6 +87,15 @@ body {
   align-items: stretch;
   justify-content: space-between;
   padding: 8px 6px 10px max(6px, env(safe-area-inset-left, 0px));
+  overflow: visible;
+}
+
+#app[data-pad-size="m"] {
+  --pad-size: 136px;
+}
+
+#app[data-pad-size="l"] {
+  --pad-size: 176px;
 }
 
 .rail-top {
@@ -173,10 +184,12 @@ body {
 .power-slot[data-p="homing"].on { background: #c77dff; }
 
 #stick-layer {
-  width: 100%;
+  width: auto;
   display: flex;
   justify-content: flex-start;
+  align-items: flex-end;
   pointer-events: none;
+  overflow: visible;
 }
 
 #app.playing #rail-left {
@@ -245,8 +258,9 @@ body {
 
 #stick-base {
   position: relative;
-  width: min(96px, 100%);
-  aspect-ratio: 1;
+  width: var(--pad-size);
+  height: var(--pad-size);
+  flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
   border: 2px solid rgba(255, 255, 255, 0.22);
@@ -272,6 +286,112 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #fff0a8, #e8b820 55%, #9a6a08);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+#dpad {
+  position: relative;
+  width: var(--pad-size);
+  height: var(--pad-size);
+  flex-shrink: 0;
+}
+
+.dpad-btn {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.dpad-btn[data-dir="up"],
+.dpad-btn[data-dir="down"] {
+  left: 32%;
+  width: 36%;
+  height: 38%;
+}
+
+.dpad-btn[data-dir="up"] {
+  top: 0;
+  border-radius: 12px 12px 6px 6px;
+}
+
+.dpad-btn[data-dir="down"] {
+  bottom: 0;
+  border-radius: 6px 6px 12px 12px;
+}
+
+.dpad-btn[data-dir="left"],
+.dpad-btn[data-dir="right"] {
+  top: 32%;
+  width: 38%;
+  height: 36%;
+}
+
+.dpad-btn[data-dir="left"] {
+  left: 0;
+  border-radius: 12px 6px 6px 12px;
+}
+
+.dpad-btn[data-dir="right"] {
+  right: 0;
+  border-radius: 6px 12px 12px 6px;
+}
+
+.dpad-btn.on {
+  background: linear-gradient(180deg, #fff0a8, #e8b820);
+  border-color: rgba(255, 214, 120, 0.8);
+}
+
+.dpad-nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22%;
+  height: 22%;
+  margin: -11% 0 0 -11%;
+  border-radius: 50%;
+  background: rgba(20, 18, 32, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.opt-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.opt-label {
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 4.5em;
+  text-align: right;
+  color: #5a4868;
+}
+
+.seg {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #efe8f8;
+}
+
+.seg button {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 12px;
+  color: #6a6080;
+  cursor: pointer;
+}
+
+.seg button.on {
+  background: #e8b820;
+  color: #4a3208;
 }
 
 .overlay {
@@ -527,6 +647,20 @@ body {
   .howto,
   .hint {
     display: none;
+  }
+
+  .opt-label {
+    font-size: 11px;
+    min-width: 4em;
+  }
+
+  .seg button {
+    font-size: 11px;
+    padding: 5px 9px;
+  }
+
+  .opt-row {
+    margin: 4px 0;
   }
 
   .power-slot {

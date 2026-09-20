@@ -3,9 +3,11 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.15";
+  const APP_VERSION = "1.16";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
+  const PAD_MODE_KEY = "hakaseDeusPadMode";
+  const PAD_SIZE_KEY = "hakaseDeusPadSize";
   const DEBUG_TAPS_NEEDED = 10;
   const SHOT_INTERVAL = 0.13;
   const LASER_INTERVAL = SHOT_INTERVAL / 1.2;
@@ -17,6 +19,7 @@
   const MAX_LASER = 3;
   const MAX_DOUBLE = 3;
   const MAX_HOMING = 5;
+  const MAX_LIVES = 3;
   const DOUBLE_SPREAD_EVERY = [0, 0, Math.round(3 / SHOT_INTERVAL), Math.round(2 / SHOT_INTERVAL)];
   const DOUBLE_SPREAD_ANG = 0.16;
   const SHIELD_HITS = 3;
@@ -56,6 +59,8 @@
   const stickLayer = document.getElementById("stick-layer");
   const stickBase = document.getElementById("stick-base");
   const stickKnob = document.getElementById("stick-knob");
+  const dpad = document.getElementById("dpad");
+  const dpadBtns = dpad ? Array.prototype.slice.call(dpad.querySelectorAll(".dpad-btn")) : [];
   const titleScreen = document.getElementById("title-screen");
   const gameoverScreen = document.getElementById("gameover-screen");
   const resultTitle = document.getElementById("result-title");
@@ -73,7 +78,10 @@
   let score = 0;
   let best = Number(localStorage.getItem(BEST_KEY) || 0);
   let sfxOn = localStorage.getItem(SFX_KEY) !== "0";
-  let lives = 3;
+  let lives = MAX_LIVES;
+  let controlMode = localStorage.getItem(PAD_MODE_KEY) === "dpad" ? "dpad" : "stick";
+  let padSize = localStorage.getItem(PAD_SIZE_KEY) || "s";
+  if (padSize !== "s" && padSize !== "m" && padSize !== "l") padSize = "s";
   let time = 0;
   let lastT = 0;
   let waveI = 0;
@@ -259,7 +267,7 @@
 
   function resetRun() {
     score = 0;
-    lives = 3;
+    lives = MAX_LIVES;
     stage = 1;
     loopN = 1;
     extraMode = false;
@@ -313,6 +321,11 @@
     player.trail = [];
     player.x = 140;
     player.y = H / 2;
+    if (!fullReset) {
+      const before = lives;
+      lives = Math.min(MAX_LIVES, lives + 1);
+      if (lives > before) spawnFloat(player.x, player.y - 36, "LIFE +1", "#ffe14a");
+    }
     banner = extraMode ? ("EX LOOP " + (loopN - 1) + "  " + EXTRA_KINDS[extraBossI].toUpperCase()) : STAGE_NAME[stage];
     bannerT = 2.4;
     if (stageEl) stageEl.textContent = stageLabel();
@@ -936,18 +949,54 @@
     });
   }
 
+  function padSurface() {
+    return controlMode === "dpad" && dpad ? dpad : stickBase;
+  }
+
+  function syncDpadVisual(nx, ny) {
+    dpadBtns.forEach(function (el) {
+      const dir = el.getAttribute("data-dir");
+      let on = false;
+      if (dir === "left") on = nx < 0;
+      if (dir === "right") on = nx > 0;
+      if (dir === "up") on = ny < 0;
+      if (dir === "down") on = ny > 0;
+      el.classList.toggle("on", on);
+    });
+  }
+
   function setStickFrom(nx, ny) {
     const mag = Math.sqrt(nx * nx + ny * ny);
     if (mag > 1) { nx /= mag; ny /= mag; }
     stick.nx = nx;
     stick.ny = ny;
-    const size = stickBase ? stickBase.getBoundingClientRect().width : 112;
-    const max = size * 0.26;
-    stickKnob.style.transform = "translate(" + (nx * max) + "px," + (ny * max) + "px)";
+    if (stickKnob && controlMode !== "dpad") {
+      const size = stickBase ? stickBase.getBoundingClientRect().width : 112;
+      const max = size * 0.26;
+      stickKnob.style.transform = "translate(" + (nx * max) + "px," + (ny * max) + "px)";
+    }
+    if (controlMode === "dpad") syncDpadVisual(nx, ny);
+  }
+
+  function setDpadFromEvent(ev) {
+    const el = padSurface();
+    if (!el) return;
+    const origin = el.getBoundingClientRect();
+    const dx = ev.clientX - (origin.left + origin.width / 2);
+    const dy = ev.clientY - (origin.top + origin.height / 2);
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    const dead = Math.max(10, origin.width * 0.16);
+    if (mag < dead) {
+      setStickFrom(0, 0);
+      return;
+    }
+    if (Math.abs(dx) > Math.abs(dy)) setStickFrom(dx > 0 ? 1 : -1, 0);
+    else setStickFrom(0, dy > 0 ? 1 : -1);
   }
 
   function captureStickOrigin() {
-    const origin = stickBase.getBoundingClientRect();
+    const el = padSurface();
+    const origin = el.getBoundingClientRect();
     stick.ox = origin.left + origin.width / 2;
     stick.oy = origin.top + origin.height / 2;
     stick.scale = Math.max(28, origin.width * 0.42);
@@ -955,17 +1004,20 @@
 
   function onPointerDown(ev) {
     if (state !== "playing") return;
+    if (ev.target && ev.target.closest && ev.target.closest("#lives-box")) return;
     stick.active = true;
     stick.id = ev.pointerId;
     captureStickOrigin();
-    setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
+    if (controlMode === "dpad") setDpadFromEvent(ev);
+    else setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
     try { railLeft.setPointerCapture(ev.pointerId); } catch (err) {}
     ev.preventDefault();
   }
 
   function onPointerMove(ev) {
     if (!stick.active || ev.pointerId !== stick.id) return;
-    setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
+    if (controlMode === "dpad") setDpadFromEvent(ev);
+    else setStickFrom((ev.clientX - stick.ox) / stick.scale, (ev.clientY - stick.oy) / stick.scale);
   }
 
   function onPointerUp(ev) {
@@ -1860,6 +1912,20 @@
     if (debugBadge) debugBadge.classList.toggle("hidden", !on);
   }
 
+  function applyControlSettings() {
+    app.setAttribute("data-pad-size", padSize);
+    app.setAttribute("data-pad-mode", controlMode);
+    if (stickBase) stickBase.classList.toggle("hidden", controlMode === "dpad");
+    if (dpad) dpad.classList.toggle("hidden", controlMode !== "dpad");
+    document.querySelectorAll("#opt-pad-mode button").forEach(function (btn) {
+      btn.classList.toggle("on", btn.getAttribute("data-mode") === controlMode);
+    });
+    document.querySelectorAll("#opt-pad-size button").forEach(function (btn) {
+      btn.classList.toggle("on", btn.getAttribute("data-size") === padSize);
+    });
+    syncDpadVisual(0, 0);
+  }
+
   function showTitle() {
     state = "title";
     debugMode = false;
@@ -1930,6 +1996,23 @@
     localStorage.setItem(SFX_KEY, sfxOn ? "1" : "0");
     ensureAudio();
   });
+  document.getElementById("opt-pad-mode").addEventListener("click", function (ev) {
+    const btn = ev.target.closest("button[data-mode]");
+    if (!btn) return;
+    controlMode = btn.getAttribute("data-mode") === "dpad" ? "dpad" : "stick";
+    localStorage.setItem(PAD_MODE_KEY, controlMode);
+    applyControlSettings();
+  });
+  document.getElementById("opt-pad-size").addEventListener("click", function (ev) {
+    const btn = ev.target.closest("button[data-size]");
+    if (!btn) return;
+    const size = btn.getAttribute("data-size");
+    if (size !== "s" && size !== "m" && size !== "l") return;
+    padSize = size;
+    localStorage.setItem(PAD_SIZE_KEY, padSize);
+    applyControlSettings();
+  });
+  applyControlSettings();
 
   document.getElementById("app-version").textContent = "Ver." + APP_VERSION;
   bestEl.textContent = String(best);

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.15">
+  <link rel="stylesheet" href="style.css?v=1.16">
 </head>
 <body>
   <div id="app">
@@ -45,6 +45,13 @@
           <div id="stick-cross" aria-hidden="true"></div>
           <div id="stick-knob"></div>
         </div>
+        <div id="dpad" class="hidden" aria-label="十字キー">
+          <span class="dpad-btn" data-dir="up"></span>
+          <span class="dpad-btn" data-dir="down"></span>
+          <span class="dpad-btn" data-dir="left"></span>
+          <span class="dpad-btn" data-dir="right"></span>
+          <span class="dpad-nub"></span>
+        </div>
       </div>
     </aside>
 
@@ -56,7 +63,7 @@
           <p class="brand">はかせで<span id="brand-i" class="brand-i">ぃ</span>うす</p>
           <p class="tagline">
             金色のティラノではかせが宇宙を駆ける‼<br>
-            左スティックで移動、ショットは自動。<br>
+            左の操作キーで移動、ショットは自動。<br>
             4面まで進み、そのあとはエクストラでボスが再登場するぞ！
           </p>
           <div class="howto">
@@ -68,9 +75,24 @@
             <input id="toggle-sfx" type="checkbox" checked>
             <span class="switch" aria-hidden="true"></span>
           </label>
+          <div class="opt-row">
+            <p class="opt-label">操作</p>
+            <div class="seg" id="opt-pad-mode">
+              <button type="button" data-mode="stick">スティック</button>
+              <button type="button" data-mode="dpad">十字キー</button>
+            </div>
+          </div>
+          <div class="opt-row">
+            <p class="opt-label">キーサイズ</p>
+            <div class="seg" id="opt-pad-size">
+              <button type="button" data-size="s">小</button>
+              <button type="button" data-size="m">中</button>
+              <button type="button" data-size="l">大</button>
+            </div>
+          </div>
           <button id="btn-start" class="btn primary" type="button">スタート</button>
-          <p class="hint">キーボードは矢印 / WASD　ボムは Z / スペース　スマホは左スティックと右ボム</p>
-          <p class="version" id="app-version">Ver.1.15</p>
+          <p class="hint">キーボードは矢印 / WASD　ボムは Z / スペース　スマホは左の操作キーと右ボム</p>
+          <p class="version" id="app-version">Ver.1.16</p>
         </div>
       </div>
 
@@ -102,6 +124,6 @@
     <p>画面を横にして遊んでね</p>
   </div>
 
-  <script src="game.js?v=1.15"></script>
+  <script src="game.js?v=1.16"></script>
 </body>
 </html>
