@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.19";
+  const APP_VERSION = "1.20";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -354,6 +354,7 @@
     if (stage === 1) return "audio/stage1.mp3";
     if (stage === 2) return "audio/stage2.mp3";
     if (stage === 3) return "audio/stage3.mp3";
+    if (stage === 4) return "audio/stage4.mp3";
     return "";
   }
 
