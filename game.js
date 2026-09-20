@@ -3,7 +3,7 @@
 
   const W = 960;
   const H = 540;
-  const APP_VERSION = "1.25";
+  const APP_VERSION = "1.26";
   const BEST_KEY = "hakaseDeusBest";
   const SFX_KEY = "hakaseDeusSfx";
   const PAD_MODE_KEY = "hakaseDeusPadMode";
@@ -112,6 +112,8 @@
   let bgmSrc = "";
   let bgmFade = 0;
   let bgmFadeMax = 1;
+  let bgmRetryT = 0;
+  const bgmPool = {};
   let bossWarn = null;
   let bossTheme = false;
   let extraIntro = null;
@@ -401,8 +403,8 @@
 
   function wantedBgm() {
     if (state !== "playing" || !sfxOn) return "";
-    if (bossWarn || extraIntro) return "";
     if (extraMode) return "audio/extra.mp3";
+    if (bossWarn) return "";
     const kind = boss && boss.kind;
     if (kind === "final" || (bossTheme && stage === 4)) return "audio/finalboss.mp3";
     if (bossTheme || boss) return "audio/boss.mp3";
@@ -411,6 +413,33 @@
     if (stage === 3) return "audio/stage3.mp3";
     if (stage === 4) return "audio/stage4.mp3";
     return "";
+  }
+
+  function bindBgmLoop(audio) {
+    if (!audio || audio._loopBound) return;
+    audio._loopBound = true;
+    audio.loop = true;
+    audio.addEventListener("ended", function () {
+      restartBgmEl(audio);
+    });
+  }
+
+  function restartBgmEl(audio) {
+    if (!audio || audio !== bgm) return;
+    audio.loop = true;
+    try { audio.currentTime = 0; } catch (err) {}
+    const play = audio.play();
+    if (play && play.catch) play.catch(function () {});
+  }
+
+  function makeBgm(src) {
+    if (bgmPool[src]) return bgmPool[src];
+    const audio = new Audio(src);
+    audio.preload = "auto";
+    audio.loop = true;
+    bindBgmLoop(audio);
+    bgmPool[src] = audio;
+    return audio;
   }
 
   function stopBgm() {
@@ -439,27 +468,53 @@
       const u = Math.max(0, bgmFade / bgmFadeMax);
       bgm.volume = BGM_VOL * u * u;
     }
-    if (bgmFade <= 0) stopBgm();
+    if (bgmFade <= 0) {
+      bgmFade = 0;
+      if (bgm) {
+        bgm.pause();
+        try { bgm.currentTime = 0; } catch (err) {}
+      }
+      bgm = null;
+      bgmSrc = "";
+      syncBgm();
+    }
   }
 
   function syncBgm() {
-    if (bgmFade > 0 || bossWarn || extraIntro) return;
+    if (bgmFade > 0 || bossWarn) return;
     const src = wantedBgm();
     if (!src) {
       stopBgm();
       return;
     }
     if (!bgm || bgmSrc !== src) {
-      stopBgm();
-      bgm = new Audio(src);
-      bgm.loop = true;
-      bgm.volume = BGM_VOL;
+      if (bgm) {
+        bgm.pause();
+        try { bgm.currentTime = 0; } catch (err) {}
+      }
+      bgm = makeBgm(src);
       bgmSrc = src;
-    } else {
-      bgm.volume = BGM_VOL;
+    }
+    bgm.loop = true;
+    bgm.volume = BGM_VOL;
+    if (bgm.ended) {
+      try { bgm.currentTime = 0; } catch (err) {}
     }
     const play = bgm.play();
     if (play && play.catch) play.catch(function () {});
+  }
+
+  function keepBgmAlive(dt) {
+    if (state !== "playing" || paused || !sfxOn) return;
+    if (bgmFade > 0 || bossWarn) return;
+    const src = wantedBgm();
+    if (!src) return;
+    bgmRetryT -= dt;
+    const dead = !bgm || bgmSrc !== src || bgm.paused || bgm.ended;
+    if (!dead) return;
+    if (bgmRetryT > 0) return;
+    bgmRetryT = 0.8;
+    syncBgm();
   }
 
   function startBossWarning(kind) {
@@ -473,7 +528,8 @@
 
   function startExtraIntro() {
     extraIntro = { t: BOSS_WARN_DUR, maxT: BOSS_WARN_DUR };
-    fadeBgmOut(BGM_FADE_DUR);
+    if (bgm) fadeBgmOut(BGM_FADE_DUR);
+    else syncBgm();
     flash = 0.28;
   }
 
@@ -1309,6 +1365,7 @@
     if (player.invuln > 0) player.invuln -= dt;
     if (bannerT > 0) bannerT -= dt;
     updateBgmFade(dt);
+    keepBgmAlive(dt);
     updateBossWarn(dt);
     updateExtraIntro(dt);
     if (extraNextT > 0) {
